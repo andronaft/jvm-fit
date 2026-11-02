@@ -105,8 +105,8 @@ func writeReport(stdout io.Writer, path string, render func(io.Writer) error) er
 		return err
 	}
 	if err := render(f); err != nil {
-		f.Close()
-		os.Remove(path)
+		_ = f.Close()
+		_ = os.Remove(path)
 		return err
 	}
 	return f.Close()

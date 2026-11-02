@@ -34,8 +34,8 @@ func TestSARIFSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 	schemaDoc, err := jsonschema.UnmarshalJSON(f)
+	_ = f.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
