@@ -1,0 +1,28 @@
+# Good: heap as a percentage, room for non-heap, G1 set, startup probe.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  namespace: shop
+spec:
+  selector:
+    matchLabels: {app: orders}
+  template:
+    metadata:
+      labels: {app: orders}
+    spec:
+      containers:
+        - name: app
+          image: amazoncorretto:21
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=70 -XX:+UseG1GC"
+          resources:
+            requests: {memory: 1536Mi, cpu: "1"}
+            limits: {memory: 1536Mi, cpu: "1"}
+          startupProbe:
+            httpGet: {path: /actuator/health, port: 8080}
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: 8080}

@@ -1,0 +1,36 @@
+# Bad: fixed -Xmx that leaves no room for non-heap, 500m CPU, early liveness.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: payments-api}
+  template:
+    metadata:
+      labels: {app: payments-api}
+    spec:
+      containers:
+        - name: app
+          image: eclipse-temurin:17-jre
+          command: ["java", "-jar", "/app/payments.jar"]
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx900m"
+          resources:
+            requests: {memory: 1Gi, cpu: 250m}
+            limits: {memory: 1Gi, cpu: 500m}
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: 8080}
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+spec:
+  selector: {app: payments-api}
+  ports:
+    - port: 80
+      targetPort: 8080

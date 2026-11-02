@@ -1,0 +1,26 @@
+# Bad: no heap setting (25% default), container support off, memory request < limit.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-export
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: export
+              image: ibm-semeru-runtimes:open-17-jre
+              args: ["-jar", "/app/export.jar"]
+              resources:
+                requests: {memory: 1Gi}
+                limits: {memory: 2Gi, cpu: "2"}
+            - name: legacy
+              image: eclipse-temurin:11-jre
+              env:
+                - name: JAVA_OPTS
+                  value: "-XX:-UseContainerSupport -Xms256m"
+              resources:
+                limits: {memory: 2Gi, cpu: "2"}
