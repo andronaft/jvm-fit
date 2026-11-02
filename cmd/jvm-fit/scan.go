@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,6 +21,7 @@ type scanOptions struct {
 	failOn          string
 	nonHeapEstimate string
 	flagsEnv        []string
+	output          string
 }
 
 func newScanCmd() *cobra.Command {
@@ -28,10 +31,13 @@ func newScanCmd() *cobra.Command {
 		Short: "Scan YAML files or directories with Kubernetes manifests",
 		Long: `Scan YAML files or directories with Kubernetes manifests ("-" reads stdin).
 
-Exit codes: 0 no findings at or above --fail-on, 1 findings at or above
---fail-on, 2 error.`,
+Exit codes:
+  0  no findings at or above --fail-on
+  1  at least one finding at or above --fail-on
+  2  error (bad flags, unreadable or invalid YAML)`,
 		Example: `  jvm-fit scan ./k8s/
   jvm-fit scan deploy.yaml --format json
+  jvm-fit scan ./k8s/ --format sarif --output jvm-fit.sarif
   helm template my-chart | jvm-fit scan -
   jvm-fit scan ./k8s/ --nonheap-estimate 500Mi --flags-env APP_JVM_ARGS`,
 		Args: cobra.MinimumNArgs(1),
@@ -39,7 +45,8 @@ Exit codes: 0 no findings at or above --fail-on, 1 findings at or above
 			return runScan(cmd, args, opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.format, "format", "text", "output format: text or json")
+	cmd.Flags().StringVar(&opts.format, "format", "text", "output format: text, json or sarif")
+	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "write the report to this file instead of stdout")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", "high", "exit with code 1 when a finding has this severity or higher (critical, high, medium, low, info, none)")
 	cmd.Flags().StringVar(&opts.nonHeapEstimate, "nonheap-estimate", "350Mi", "memory the JVM needs outside the heap (metaspace, threads, code cache, direct buffers)")
 	cmd.Flags().StringSliceVar(&opts.flagsEnv, "flags-env", nil, "more env vars that your entrypoint passes to java (added to "+strings.Join(flags.DefaultAssumedEnv, ", ")+")")
@@ -47,8 +54,9 @@ Exit codes: 0 no findings at or above --fail-on, 1 findings at or above
 }
 
 func runScan(cmd *cobra.Command, paths []string, opts scanOptions) error {
-	if opts.format != "text" && opts.format != "json" {
-		return fmt.Errorf("unknown --format %q (want text or json)", opts.format)
+	render, ok := renderers[opts.format]
+	if !ok {
+		return fmt.Errorf("unknown --format %q (want text, json or sarif)", opts.format)
 	}
 	var failOn rules.Severity
 	failNever := strings.EqualFold(opts.failOn, "none")
@@ -71,17 +79,35 @@ func runScan(cmd *cobra.Command, paths []string, opts scanOptions) error {
 	}
 	res := report.Scan(ws, assumed, model.Options{NonHeap: nonHeap})
 
-	out := cmd.OutOrStdout()
-	if opts.format == "json" {
-		err = report.JSON(out, res, version)
-	} else {
-		err = report.Text(out, res)
-	}
-	if err != nil {
+	if err := writeReport(cmd.OutOrStdout(), opts.output, func(w io.Writer) error { return render(w, res) }); err != nil {
 		return err
 	}
 	if max, ok := res.Max(); ok && !failNever && max >= failOn {
 		return exitError{code: 1}
 	}
 	return nil
+}
+
+var renderers = map[string]func(io.Writer, report.Result) error{
+	"text":  report.Text,
+	"json":  func(w io.Writer, r report.Result) error { return report.JSON(w, r, version) },
+	"sarif": func(w io.Writer, r report.Result) error { return report.SARIF(w, r, version) },
+}
+
+// writeReport writes to stdout, or to a file when path is set. A file is
+// written only when rendering succeeds.
+func writeReport(stdout io.Writer, path string, render func(io.Writer) error) error {
+	if path == "" {
+		return render(stdout)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if err := render(f); err != nil {
+		f.Close()
+		os.Remove(path)
+		return err
+	}
+	return f.Close()
 }

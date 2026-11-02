@@ -29,6 +29,9 @@ jobs:
         run: |
           ./bin/jvm-fit --help
           ./bin/jvm-fit scan testdata/ --fail-on none
+          ./bin/jvm-fit scan testdata/ --format sarif -o /tmp/jvm-fit.sarif --fail-on none
+          ./bin/jvm-fit scan testdata/payments-api.yaml --fail-on critical
+          if ./bin/jvm-fit scan testdata/payments-api.yaml --fail-on high; then echo "want exit 1"; exit 1; fi
 
   # Starts real JVMs (JDK 11, 17, 21) in Docker with the limits from the test
   # cases and checks the model predicts the same heap, CPU count and GC.

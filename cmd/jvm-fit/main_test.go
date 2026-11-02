@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -134,5 +136,33 @@ func TestExplain(t *testing.T) {
 	out, err = run("explain")
 	if err != nil || strings.Count(out, "\n") != 12 {
 		t.Errorf("rule list: %v\n%s", err, out)
+	}
+}
+
+func TestScanSARIFToFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "out.sarif")
+	out, err := run("scan", "../../testdata", "--format", "sarif", "-o", path)
+	if exitCode(err) != 1 {
+		t.Fatalf("exit = %d (%v), want 1: the exit code does not depend on the format", exitCode(err), err)
+	}
+	if out != "" {
+		t.Errorf("stdout should be empty with --output, got %q", out)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"version": "2.1.0"`) {
+		t.Errorf("not SARIF: %.200s", data)
+	}
+}
+
+func TestOutputNotWrittenOnError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "out.json")
+	if _, err := run("scan", "does-not-exist", "--format", "json", "-o", path); exitCode(err) != 2 {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("output file should not exist")
 	}
 }

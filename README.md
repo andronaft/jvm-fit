@@ -70,18 +70,40 @@ git clone https://github.com/andronaft/jvm-fit && cd jvm-fit && make build
 jvm-fit scan ./k8s/                        # files and directories (recursive)
 helm template my-chart | jvm-fit scan -    # stdin
 jvm-fit scan ./k8s/ --format json          # machine-readable
+jvm-fit scan ./k8s/ --format sarif -o jvm-fit.sarif   # for GitHub code scanning
 jvm-fit explain                            # list rules
 jvm-fit explain JVM007                     # why it is a problem and how to fix it
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--format` | `text` | `text` or `json` |
+| `--format` | `text` | `text`, `json` or `sarif` (2.1.0) |
+| `-o`, `--output` | stdout | write the report to a file |
 | `--fail-on` | `high` | exit 1 when a finding has this severity or higher (`critical`, `high`, `medium`, `low`, `info`, `none`) |
 | `--nonheap-estimate` | `350Mi` | memory the JVM needs outside the heap |
 | `--flags-env` | | more env vars your entrypoint passes to `java` |
 
-Exit codes: `0` nothing at or above `--fail-on`, `1` findings, `2` error.
+Exit codes (the same for every format):
+
+| Code | Meaning |
+|---|---|
+| `0` | no findings at or above `--fail-on` |
+| `1` | at least one finding at or above `--fail-on` |
+| `2` | error: bad flags, unreadable file or invalid YAML |
+
+### GitHub code scanning
+
+```yaml
+- run: jvm-fit scan k8s/ --format sarif -o jvm-fit.sarif --fail-on none
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: jvm-fit.sarif
+    category: jvm-fit
+```
+
+Severities map to SARIF levels: critical and high → `error`, medium →
+`warning`, low and info → `note`. The output is validated against the
+official OASIS SARIF 2.1.0 schema in the tests.
 
 ## How it works
 
@@ -157,7 +179,7 @@ at least one good and one bad example.
 
 ## Roadmap
 
-- SARIF output and a GitHub Action with PR annotations
+- GitHub Action with PR annotations
 - `--helm` and Kustomize input
 - Reading pods from a live cluster and real non-heap usage from Prometheus
 
