@@ -8,6 +8,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM002",
+		Name:     "XmxOverLimit",
 		Severity: Critical,
 		Title:    "-Xmx is equal to or larger than the memory limit",
 		Explain: `The heap alone can grow to the whole memory limit, and the JVM always needs

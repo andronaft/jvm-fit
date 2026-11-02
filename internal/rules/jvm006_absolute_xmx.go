@@ -7,6 +7,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM006",
+		Name:     "AbsoluteXmx",
 		Severity: Info,
 		Title:    "Fixed -Xmx in absolute units",
 		Explain: `-Xmx2g does not change when someone changes the memory limit. After a few

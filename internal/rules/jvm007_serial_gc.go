@@ -7,6 +7,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM007",
+		Name:     "SerialGCSelected",
 		Severity: Medium,
 		Title:    "The JVM will pick SerialGC",
 		Explain: `When no GC is set, HotSpot picks G1 only on a "server class machine": at least

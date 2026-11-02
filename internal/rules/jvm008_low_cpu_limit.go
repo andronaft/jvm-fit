@@ -8,6 +8,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM008",
+		Name:     "LowCPULimit",
 		Severity: Medium,
 		Title:    "CPU limit below 1 core",
 		Explain: `The JVM is busy with many threads at once during startup (class loading, JIT

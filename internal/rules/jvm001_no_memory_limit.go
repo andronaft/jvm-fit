@@ -5,6 +5,7 @@ import "github.com/andronaft/jvm-fit/internal/model"
 func init() {
 	register(Rule{
 		ID:       "JVM001",
+		Name:     "NoMemoryLimit",
 		Severity: High,
 		Title:    "No memory limit and the heap is a percentage of RAM",
 		Explain: `Without a memory limit the JVM sees the memory of the whole node. With a

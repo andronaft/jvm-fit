@@ -9,6 +9,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM012",
+		Name:     "NoStartupProbe",
 		Severity: Medium,
 		Title:    "No startup probe and liveness starts early",
 		Explain: `A Java service can take 20-60s or more to start, longer with a low CPU limit.

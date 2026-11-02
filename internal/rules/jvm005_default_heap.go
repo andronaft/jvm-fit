@@ -9,6 +9,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM005",
+		Name:     "DefaultHeapSize",
 		Severity: Low,
 		Title:    "No heap setting: HotSpot uses only 25% of the limit",
 		Explain: `With no -Xmx and no MaxRAMPercentage, HotSpot sets the max heap to 25% of

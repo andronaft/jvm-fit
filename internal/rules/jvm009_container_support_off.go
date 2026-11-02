@@ -7,6 +7,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM009",
+		Name:     "ContainerSupportDisabled",
 		Severity: High,
 		Title:    "-XX:-UseContainerSupport",
 		Explain: `With container support off, the JVM ignores cgroup limits and sizes the heap,

@@ -10,6 +10,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM003",
+		Name:     "MemoryBudgetExceeded",
 		Severity: High,
 		Title:    "Heap plus non-heap estimate does not fit in the memory limit",
 		Explain: `The JVM uses memory outside the heap: metaspace (loaded classes), a stack per

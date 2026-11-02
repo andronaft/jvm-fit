@@ -40,7 +40,9 @@ func ParseSeverity(s string) (Severity, error) {
 
 // Rule is one check.
 type Rule struct {
-	ID       string
+	ID string
+	// Name is a short PascalCase name, used in SARIF.
+	Name     string
 	Severity Severity
 	// Title is a short summary for rule lists.
 	Title string

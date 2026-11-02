@@ -8,6 +8,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM011",
+		Name:     "MemoryRequestBelowLimit",
 		Severity: Low,
 		Title:    "Memory request is lower than the limit",
 		Explain: `The JVM grows the heap toward its max and rarely gives memory back to the OS.

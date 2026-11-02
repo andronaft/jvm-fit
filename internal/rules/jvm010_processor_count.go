@@ -11,6 +11,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM010",
+		Name:     "ProcessorCountOverLimit",
 		Severity: Medium,
 		Title:    "ActiveProcessorCount is higher than the CPU limit",
 		Explain: `-XX:ActiveProcessorCount sets how many CPUs the JVM thinks it has. GC threads,

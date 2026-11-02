@@ -9,6 +9,7 @@ import (
 func init() {
 	register(Rule{
 		ID:       "JVM004",
+		Name:     "HighMaxRAMPercentage",
 		Severity: Medium,
 		Title:    "MaxRAMPercentage is above 80",
 		Explain: `With MaxRAMPercentage above 80 less than 20% of the limit is left for
