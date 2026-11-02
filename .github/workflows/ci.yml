@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt and go vet
+        run: make lint
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+      - name: Test
+        run: go test -race ./...
+      - name: Build
+        run: make build
+      - name: Smoke test
+        run: |
+          ./bin/jvm-fit --help
+          ./bin/jvm-fit scan testdata/ --fail-on none
+
+  # Starts real JVMs (JDK 11, 17, 21) in Docker with the limits from the test
+  # cases and checks the model predicts the same heap, CPU count and GC.
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Pull JDK images
+        run: for v in 11 17 21; do docker pull -q eclipse-temurin:$v-jre; done
+      - name: Docker info
+        run: docker info --format 'cgroup v{{.CgroupVersion}}, {{.NCPU}} CPUs, {{.MemTotal}} bytes'
+      - name: Model vs real JVM
+        run: make evidence
