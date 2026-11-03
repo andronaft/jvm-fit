@@ -16,7 +16,7 @@ import (
 
 func scanTestdata(t *testing.T) Result {
 	t.Helper()
-	ws, err := loader.LoadPaths([]string{filepath.Join("..", "..", "testdata")})
+	ws, _, err := loader.LoadPaths([]string{filepath.Join("..", "..", "testdata")}, loader.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

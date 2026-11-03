@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -71,66 +70,95 @@ type Probe struct {
 	TimeoutSeconds      int `yaml:"timeoutSeconds"`
 }
 
-// LoadPaths reads every .yaml and .yml file in the given files and directories.
-// Directories are walked recursively. "-" reads from stdin.
-func LoadPaths(paths []string) ([]Workload, error) {
+// LoadPaths reads Kubernetes manifests from files and directories. "-"
+// reads stdin. A Helm chart directory (with Chart.yaml) is rendered with
+// `helm template` and a Kustomize directory with `kustomize build`.
+// Directories are walked recursively; charts found inside are rendered with
+// their default values, or skipped with a warning when that fails.
+// Kustomizations found inside are not built: a base and its overlays would be
+// reported twice, so pass the overlay directory itself.
+func LoadPaths(paths []string, o Options) ([]Workload, []string, error) {
 	var out []Workload
+	var warnings []string
 	for _, p := range paths {
-		if p == "-" {
-			data, err := io.ReadAll(os.Stdin)
-			if err != nil {
-				return nil, err
-			}
-			ws, err := Parse(data, "<stdin>")
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, ws...)
-			continue
-		}
-		files, err := yamlFiles(p)
+		ws, warn, err := loadPath(p, o)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		for _, f := range files {
-			data, err := os.ReadFile(f)
-			if err != nil {
-				return nil, err
-			}
-			ws, err := Parse(data, f)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, ws...)
-		}
+		out = append(out, ws...)
+		warnings = append(warnings, warn...)
 	}
-	return out, nil
+	return out, warnings, nil
 }
 
-func yamlFiles(root string) ([]string, error) {
+func loadPath(root string, o Options) ([]Workload, []string, error) {
+	if root == "-" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, nil, err
+		}
+		ws, err := Parse(data, "<stdin>")
+		return ws, nil, err
+	}
 	info, err := os.Stat(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !info.IsDir() {
-		return []string{root}, nil
+		ws, err := loadFile(root)
+		return ws, nil, err
 	}
-	var files []string
+	if IsChart(root) {
+		ws, err := RenderHelm(root, o)
+		return ws, nil, err
+	}
+	if kustomizationFile(root) != "" {
+		ws, err := RenderKustomize(root)
+		return ws, nil, err
+	}
+	var out []Workload
+	var warnings []string
 	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && p != root && strings.HasPrefix(d.Name(), ".") {
-			return filepath.SkipDir
+		if d.IsDir() {
+			if p == root {
+				return nil
+			}
+			if strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			if IsChart(p) {
+				ws, err := RenderHelm(p, Options{})
+				if err != nil {
+					warnings = append(warnings, fmt.Sprintf("skipped Helm chart %s: %v", p, err))
+				}
+				out = append(out, ws...)
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(p))
-		if !d.IsDir() && (ext == ".yaml" || ext == ".yml") {
-			files = append(files, p)
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
 		}
+		ws, err := loadFile(p)
+		if err != nil {
+			return err
+		}
+		out = append(out, ws...)
 		return nil
 	})
-	sort.Strings(files)
-	return files, err
+	return out, warnings, err
+}
+
+func loadFile(path string) ([]Workload, error) {
+	data, err := os.ReadFile(path) // #nosec G304 -- a path the user passed
+	if err != nil {
+		return nil, err
+	}
+	return Parse(data, path)
 }
 
 // Parse reads a multi-document YAML stream. Documents without a pod spec are

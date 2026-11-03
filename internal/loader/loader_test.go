@@ -99,7 +99,7 @@ func TestParseInvalid(t *testing.T) {
 }
 
 func TestLoadPaths(t *testing.T) {
-	ws, err := LoadPaths([]string{filepath.Join("..", "..", "testdata")})
+	ws, _, err := LoadPaths([]string{filepath.Join("..", "..", "testdata")}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

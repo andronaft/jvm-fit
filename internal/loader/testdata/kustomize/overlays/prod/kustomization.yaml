@@ -1,0 +1,5 @@
+namespace: prod
+resources:
+  - ../../base
+patches:
+  - path: resources.yaml

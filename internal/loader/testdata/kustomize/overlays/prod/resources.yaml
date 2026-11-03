@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=90"
+          resources:
+            limits:
+              memory: 2Gi
+              cpu: "2"

@@ -1,0 +1,2 @@
+# Values file for the spring-app chart in tests. Not a Kubernetes manifest.
+javaOpts: "-XX:MaxRAMPercentage=70"

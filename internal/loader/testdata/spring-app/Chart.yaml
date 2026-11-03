@@ -1,0 +1,6 @@
+apiVersion: v2
+name: spring-app
+description: A Spring Boot service, packaged like the Bitnami charts
+type: application
+version: 0.1.0
+appVersion: "1.4.2"
