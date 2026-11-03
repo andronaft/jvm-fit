@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - uses: azure/setup-helm@v4
+      - name: helm and kubectl versions
+        run: helm version --short && kubectl version --client
       - name: gofmt and go vet
         run: make lint
       - name: golangci-lint
@@ -32,6 +35,8 @@ jobs:
           ./bin/jvm-fit scan testdata/ --format sarif -o /tmp/jvm-fit.sarif --fail-on none
           ./bin/jvm-fit scan testdata/payments-api.yaml --fail-on critical
           if ./bin/jvm-fit scan testdata/payments-api.yaml --fail-on high; then echo "want exit 1"; exit 1; fi
+          ./bin/jvm-fit scan internal/loader/testdata/spring-app -f internal/loader/testdata/spring-values-prod.yaml --fail-on none
+          ./bin/jvm-fit scan internal/loader/testdata/kustomize/overlays/prod --fail-on none
 
   # Starts real JVMs (JDK 11, 17, 21) in Docker with the limits from the test
   # cases and checks the model predicts the same heap, CPU count and GC.

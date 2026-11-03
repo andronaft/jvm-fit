@@ -22,26 +22,39 @@ type scanOptions struct {
 	nonHeapEstimate string
 	flagsEnv        []string
 	output          string
+	helm            []string
+	helmValues      []string
+	helmSet         []string
+	chartVersion    string
 }
 
 func newScanCmd() *cobra.Command {
 	opts := scanOptions{}
 	cmd := &cobra.Command{
-		Use:   "scan <path>...",
-		Short: "Scan YAML files or directories with Kubernetes manifests",
-		Long: `Scan YAML files or directories with Kubernetes manifests ("-" reads stdin).
+		Use:   "scan [path]...",
+		Short: "Scan Kubernetes manifests, Helm charts or Kustomize directories",
+		Long: `Scan Kubernetes manifests: YAML files, directories (recursive) or "-" for stdin.
+
+A directory with Chart.yaml is rendered with "helm template", a directory with
+kustomization.yaml with "kustomize build" (or "kubectl kustomize"). Use --helm
+for charts from a repository or an OCI registry.
 
 Exit codes:
   0  no findings at or above --fail-on
   1  at least one finding at or above --fail-on
-  2  error (bad flags, unreadable or invalid YAML)`,
+  2  error (bad flags, unreadable or invalid YAML, a chart that fails to render)`,
 		Example: `  jvm-fit scan ./k8s/
   jvm-fit scan deploy.yaml --format json
   jvm-fit scan ./k8s/ --format sarif --output jvm-fit.sarif
+  jvm-fit scan ./charts/payments -f values-prod.yaml
+  jvm-fit scan --helm oci://registry-1.docker.io/bitnamicharts/tomcat
+  jvm-fit scan ./k8s/overlays/prod
   helm template my-chart | jvm-fit scan -
   jvm-fit scan ./k8s/ --nonheap-estimate 500Mi --flags-env APP_JVM_ARGS`,
-		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 && len(opts.helm) == 0 {
+				return fmt.Errorf("give a path or --helm <chart>")
+			}
 			return runScan(cmd, args, opts)
 		},
 	}
@@ -50,6 +63,10 @@ Exit codes:
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", "high", "exit with code 1 when a finding has this severity or higher (critical, high, medium, low, info, none)")
 	cmd.Flags().StringVar(&opts.nonHeapEstimate, "nonheap-estimate", "350Mi", "memory the JVM needs outside the heap (metaspace, threads, code cache, direct buffers)")
 	cmd.Flags().StringSliceVar(&opts.flagsEnv, "flags-env", nil, "more env vars that your entrypoint passes to java (added to "+strings.Join(flags.DefaultAssumedEnv, ", ")+")")
+	cmd.Flags().StringArrayVar(&opts.helm, "helm", nil, "Helm chart to render: a directory, repo/chart, an OCI reference or a URL (repeatable)")
+	cmd.Flags().StringArrayVarP(&opts.helmValues, "values", "f", nil, "values file for the charts given as arguments or with --helm (repeatable)")
+	cmd.Flags().StringArrayVar(&opts.helmSet, "set", nil, "set a chart value, key=value (repeatable)")
+	cmd.Flags().StringVar(&opts.chartVersion, "chart-version", "", "chart version for --helm charts from a repository")
 	return cmd
 }
 
@@ -73,9 +90,20 @@ func runScan(cmd *cobra.Command, paths []string, opts scanOptions) error {
 	}
 	assumed := append(append([]string{}, flags.DefaultAssumedEnv...), opts.flagsEnv...)
 
-	ws, err := loader.LoadPaths(paths)
+	lo := loader.Options{HelmValues: opts.helmValues, HelmSet: opts.helmSet, ChartVersion: opts.chartVersion}
+	ws, warnings, err := loader.LoadPaths(paths, lo)
 	if err != nil {
 		return err
+	}
+	for _, chart := range opts.helm {
+		hw, err := loader.RenderHelm(chart, lo)
+		if err != nil {
+			return err
+		}
+		ws = append(ws, hw...)
+	}
+	for _, w := range warnings {
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "warning:", w)
 	}
 	res := report.Scan(ws, assumed, model.Options{NonHeap: nonHeap})
 

@@ -68,6 +68,9 @@ git clone https://github.com/andronaft/jvm-fit && cd jvm-fit && make build
 
 ```bash
 jvm-fit scan ./k8s/                        # files and directories (recursive)
+jvm-fit scan ./charts/payments -f values-prod.yaml   # Helm chart (helm template)
+jvm-fit scan --helm bitnami/tomcat --chart-version 11.3.1   # chart from a repo or OCI
+jvm-fit scan ./k8s/overlays/prod           # Kustomize (kustomize build)
 helm template my-chart | jvm-fit scan -    # stdin
 jvm-fit scan ./k8s/ --format json          # machine-readable
 jvm-fit scan ./k8s/ --format sarif -o jvm-fit.sarif   # for GitHub code scanning
@@ -82,6 +85,23 @@ jvm-fit explain JVM007                     # why it is a problem and how to fix 
 | `--fail-on` | `high` | exit 1 when a finding has this severity or higher (`critical`, `high`, `medium`, `low`, `info`, `none`) |
 | `--nonheap-estimate` | `350Mi` | memory the JVM needs outside the heap |
 | `--flags-env` | | more env vars your entrypoint passes to `java` |
+| `--helm` | | chart to render: a directory, `repo/chart`, an OCI reference or a `.tgz` URL (repeatable) |
+| `-f`, `--values` | | values file for the charts given as arguments or with `--helm` (repeatable) |
+| `--set` | | chart value, `key=value` (repeatable) |
+| `--chart-version` | | chart version for `--helm` charts from a repository |
+
+### Helm and Kustomize
+
+- A directory with `Chart.yaml` is rendered with `helm template`; with
+  `kustomization.yaml`, with `kustomize build` (or `kubectl kustomize` when
+  `kustomize` is not installed). `helm` / `kubectl` must be in `PATH`.
+- Findings point at the template file (`charts/payments/templates/deployment.yaml`)
+  or the `kustomization.yaml`, without a line number: the rendered output
+  has no line numbers of the sources.
+- A chart found while walking a directory is rendered with its default
+  values; if that fails, it is skipped with a warning. Kustomizations found
+  while walking are not built (a base and its overlays would be reported
+  twice), so pass the overlay directory itself.
 
 Exit codes (the same for every format):
 
@@ -89,7 +109,7 @@ Exit codes (the same for every format):
 |---|---|
 | `0` | no findings at or above `--fail-on` |
 | `1` | at least one finding at or above `--fail-on` |
-| `2` | error: bad flags, unreadable file or invalid YAML |
+| `2` | error: bad flags, unreadable file, invalid YAML or a chart that fails to render |
 
 ### GitHub code scanning
 
@@ -107,22 +127,24 @@ official OASIS SARIF 2.1.0 schema in the tests.
 
 ## How it works
 
-1. **Find Java containers**: JDK/JRE images (Temurin, Corretto, Semeru, Zulu,
+1. **Load manifests**: YAML files, Helm charts (`helm template`) and
+   Kustomize overlays (`kustomize build`).
+2. **Find Java containers**: JDK/JRE images (Temurin, Corretto, Semeru, Zulu,
    Liberica, distroless/java, Tomcat...), a `java` command, or `JAVA_*` env vars.
-2. **Collect JVM flags** in the order the JVM applies them (later wins):
+3. **Collect JVM flags** in the order the JVM applies them (later wins):
    `JAVA_TOOL_OPTIONS` → `JDK_JAVA_OPTIONS` → `JAVA_OPTS`-style vars →
    `command`/`args`. Kubernetes `$(VAR)` references and
    `sh -c "java $JAVA_OPTS ..."` are expanded. `JAVA_OPTS` works only if the
    entrypoint passes it to `java`, so jvm-fit marks those flags as **assumed**,
    unless the command uses the var directly. Vars from a ConfigMap or Secret
    are reported as not checked.
-3. **Model how the JVM sees the container**:
+4. **Model how the JVM sees the container**:
    - max heap from `-Xmx`, `MaxRAMPercentage` or the JVM default (HotSpot: 25%
      of the limit, with a 126Mi floor for small limits; OpenJ9: 50% below 1Gi);
    - CPU count from the CPU limit (rounded up) or `ActiveProcessorCount`;
    - the GC the JVM picks: SerialGC unless it sees 2+ CPUs **and** ~1792Mi+;
    - memory budget: `heap max + non-heap estimate ≤ limit`.
-4. **Run the rules** and print findings with a fix.
+5. **Run the rules** and print findings with a fix.
 
 The non-heap number is an **estimate** (default 350Mi, typical for Spring
 Boot). Change it with `--nonheap-estimate` if you know your app.
@@ -180,7 +202,6 @@ at least one good and one bad example.
 ## Roadmap
 
 - GitHub Action with PR annotations
-- `--helm` and Kustomize input
 - Reading pods from a live cluster and real non-heap usage from Prometheus
 
 ## License

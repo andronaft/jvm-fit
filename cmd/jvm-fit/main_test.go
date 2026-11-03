@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,5 +165,54 @@ func TestOutputNotWrittenOnError(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Errorf("output file should not exist")
+	}
+}
+
+func needTool(t *testing.T, name string) {
+	t.Helper()
+	if _, err := exec.LookPath(name); err != nil {
+		t.Skipf("%s not in PATH", name)
+	}
+}
+
+func TestScanHelmChart(t *testing.T) {
+	needTool(t, "helm")
+	chart := "../../internal/loader/testdata/spring-app"
+	out, err := run("scan", chart)
+	if exitCode(err) != 1 {
+		t.Fatalf("exit = %d (%v)\n%s", exitCode(err), err, out)
+	}
+	for _, want := range []string{
+		"spring-app (Deployment, container: spring-app)",
+		"templates/deployment.yaml  limits: memory=768Mi cpu=750m",
+		"HIGH     JVM003",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output does not contain %q:\n%s", want, out)
+		}
+	}
+
+	// The same chart through --helm, with values that make it fit.
+	out, err = run("scan", "--helm", chart,
+		"--set", "resourcesPreset=large", "--set", "startupProbe.enabled=true",
+		"--set", "javaOpts=-XX:MaxRAMPercentage=70 -XX:+UseG1GC")
+	if exitCode(err) != 0 {
+		t.Errorf("exit = %d (%v)\n%s", exitCode(err), err, out)
+	}
+}
+
+func TestScanKustomize(t *testing.T) {
+	if _, err := exec.LookPath("kustomize"); err != nil {
+		needTool(t, "kubectl")
+	}
+	out, _ := run("scan", "../../internal/loader/testdata/kustomize/overlays/prod")
+	if !strings.Contains(out, "prod/billing (Deployment, container: app)") || !strings.Contains(out, "JVM004") {
+		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestScanNoInput(t *testing.T) {
+	if _, err := run("scan"); exitCode(err) != 2 {
+		t.Errorf("err = %v, want a usage error", err)
 	}
 }
