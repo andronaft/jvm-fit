@@ -99,3 +99,16 @@ func Run(c *model.Container) []Finding {
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Severity > out[j].Severity })
 	return out
 }
+
+// percentageFix names the MaxRAMPercentage to use, so a rule never suggests a
+// value that does not fit, or that disagrees with the memory budget fix.
+func percentageFix(c *model.Container) string {
+	if c.MemLimit > 0 && c.Needed() > c.MemLimit {
+		return "-XX:MaxRAMPercentage, with the value from the memory budget fix (JVM002 or JVM003)"
+	}
+	p := 70
+	if c.MemLimit > 0 {
+		p = min(p, model.RecommendedPercentage(c.MemLimit, c.NonHeap))
+	}
+	return fmt.Sprintf("-XX:MaxRAMPercentage=%d", p)
+}

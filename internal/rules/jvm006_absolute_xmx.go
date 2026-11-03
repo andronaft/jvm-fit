@@ -22,7 +22,7 @@ Fix: replace -Xmx with -XX:MaxRAMPercentage so the heap follows the limit.`,
 			src := c.Flags.Flags.MaxHeap.Source.Name
 			return &Finding{
 				Message: "Heap is fixed with " + c.Flags.Flags.MaxHeap.Raw + " (" + src + ") and will not follow changes to the limit",
-				Fix:     "replace it with -XX:MaxRAMPercentage=70",
+				Fix:     "replace it with " + percentageFix(c),
 			}
 		},
 	})

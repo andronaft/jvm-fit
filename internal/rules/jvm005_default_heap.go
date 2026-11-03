@@ -25,7 +25,7 @@ Fix: -XX:MaxRAMPercentage=70 (or 75).`,
 			}
 			return &Finding{
 				Message: "No heap setting: max heap is " + quantity.Mi(c.HeapMax) + " of " + quantity.Human(c.MemLimit) + " (" + c.HeapDefaultNote + ")",
-				Fix:     "add -XX:MaxRAMPercentage=70",
+				Fix:     "add " + percentageFix(c),
 			}
 		},
 	})
