@@ -122,7 +122,7 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: andronaft/jvm-fit@main   # pin a release tag once there is one
         with:
           path: k8s/
@@ -159,12 +159,12 @@ permissions:
   contents: read
   security-events: write
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
   - uses: andronaft/jvm-fit@main
     with:
       path: k8s/
       sarif-file: jvm-fit.sarif
-  - uses: github/codeql-action/upload-sarif@v3
+  - uses: github/codeql-action/upload-sarif@v4
     if: always() && hashFiles('jvm-fit.sarif') != ''
     with:
       sarif_file: jvm-fit.sarif

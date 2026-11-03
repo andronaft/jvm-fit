@@ -50,7 +50,7 @@ runs:
 
     - name: Set up Go
       if: steps.go.outputs.found != 'true'
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
         go-version-file: ${{ github.action_path }}/go.mod
         cache: false
