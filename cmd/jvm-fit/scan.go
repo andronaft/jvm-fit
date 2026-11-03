@@ -58,7 +58,7 @@ Exit codes:
 			return runScan(cmd, args, opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.format, "format", "text", "output format: text, json or sarif")
+	cmd.Flags().StringVar(&opts.format, "format", "text", "output format: text, json, sarif or github (GitHub Actions annotations)")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "write the report to this file instead of stdout")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", "high", "exit with code 1 when a finding has this severity or higher (critical, high, medium, low, info, none)")
 	cmd.Flags().StringVar(&opts.nonHeapEstimate, "nonheap-estimate", "350Mi", "memory the JVM needs outside the heap (metaspace, threads, code cache, direct buffers)")
@@ -73,7 +73,7 @@ Exit codes:
 func runScan(cmd *cobra.Command, paths []string, opts scanOptions) error {
 	render, ok := renderers[opts.format]
 	if !ok {
-		return fmt.Errorf("unknown --format %q (want text, json or sarif)", opts.format)
+		return fmt.Errorf("unknown --format %q (want text, json, sarif or github)", opts.format)
 	}
 	var failOn rules.Severity
 	failNever := strings.EqualFold(opts.failOn, "none")
@@ -117,9 +117,10 @@ func runScan(cmd *cobra.Command, paths []string, opts scanOptions) error {
 }
 
 var renderers = map[string]func(io.Writer, report.Result) error{
-	"text":  report.Text,
-	"json":  func(w io.Writer, r report.Result) error { return report.JSON(w, r, version) },
-	"sarif": func(w io.Writer, r report.Result) error { return report.SARIF(w, r, version) },
+	"text":   report.Text,
+	"json":   func(w io.Writer, r report.Result) error { return report.JSON(w, r, version) },
+	"sarif":  func(w io.Writer, r report.Result) error { return report.SARIF(w, r, version) },
+	"github": report.GitHub,
 }
 
 // writeReport writes to stdout, or to a file when path is set. A file is

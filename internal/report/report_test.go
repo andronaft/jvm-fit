@@ -144,3 +144,57 @@ func TestTextNoJava(t *testing.T) {
 		t.Errorf("output: %s", buf.String())
 	}
 }
+
+func TestGitHub(t *testing.T) {
+	// Annotations need paths relative to the repository root.
+	t.Chdir(filepath.Join("..", ".."))
+	ws, _, err := loader.LoadPaths([]string{"testdata"}, loader.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := GitHub(&buf, Scan(ws, nil, model.Options{})); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 10 {
+		t.Fatalf("got %d annotations, want 10:\n%s", len(lines), buf.String())
+	}
+	want := "::error file=testdata/payments-api.yaml,line=15,title=JVM003 MemoryBudgetExceeded::Heap + non-heap needs"
+	found := false
+	for _, l := range lines {
+		if strings.HasPrefix(l, want) {
+			found = true
+		}
+		if strings.Count(l, "\n") > 0 || !strings.HasPrefix(l, "::") {
+			t.Errorf("not one workflow command per line: %q", l)
+		}
+	}
+	if !found {
+		t.Errorf("no line starting with %q:\n%s", want, buf.String())
+	}
+	if !strings.Contains(buf.String(), "%0Afix: ") {
+		t.Error("fix should be on its own line (escaped newline)")
+	}
+}
+
+func TestGitHubEscape(t *testing.T) {
+	if got := escapeData("50% of 1Gi\nnext"); got != "50%25 of 1Gi%0Anext" {
+		t.Errorf("escapeData = %q", got)
+	}
+	if got := escapeProperty("a:b,c"); got != "a%3Ab%2Cc" {
+		t.Errorf("escapeProperty = %q", got)
+	}
+}
+
+func TestGitHubOutsideRepo(t *testing.T) {
+	// A file outside the working directory gets no file property: GitHub
+	// cannot place it, so the annotation goes to the run only.
+	var buf bytes.Buffer
+	if err := GitHub(&buf, scanTestdata(t)); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "file=") {
+		t.Errorf("unexpected file property:\n%s", buf.String())
+	}
+}
