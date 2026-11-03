@@ -1,0 +1,40 @@
+# A Spring Boot service whose JVM settings fit its limits. The jvm-fit
+# workflow scans this directory on every pull request.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: checkout
+  template:
+    metadata:
+      labels:
+        app: checkout
+    spec:
+      containers:
+        - name: app
+          image: eclipse-temurin:21-jre
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=70 -XX:+UseG1GC"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1536Mi
+            limits:
+              cpu: "2"
+              memory: 1536Mi
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 10

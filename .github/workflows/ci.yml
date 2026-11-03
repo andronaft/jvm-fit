@@ -38,6 +38,36 @@ jobs:
           ./bin/jvm-fit scan internal/loader/testdata/spring-app -f internal/loader/testdata/spring-values-prod.yaml --fail-on none
           ./bin/jvm-fit scan internal/loader/testdata/kustomize/overlays/prod --fail-on none
 
+  # Runs the GitHub Action from this checkout on testdata/.
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Report only
+        id: report
+        uses: ./
+        with:
+          path: testdata
+          fail-on: none
+          sarif-file: ${{ runner.temp }}/jvm-fit.sarif
+      - name: Check outputs
+        env:
+          FINDINGS: ${{ steps.report.outputs.findings }}
+          SARIF: ${{ runner.temp }}/jvm-fit.sarif
+        run: |
+          test "$FINDINGS" = 10 || { echo "findings = $FINDINGS, want 10"; exit 1; }
+          grep -q '"version": "2.1.0"' "$SARIF"
+      - name: Fail on high
+        id: fail
+        continue-on-error: true
+        uses: ./
+        with:
+          path: testdata/payments-api.yaml
+          summary: "false"
+      - name: Check the step failed
+        if: steps.fail.outcome != 'failure'
+        run: echo "want failure, got ${{ steps.fail.outcome }}" && exit 1
+
   # Starts real JVMs (JDK 11, 17, 21) in Docker with the limits from the test
   # cases and checks the model predicts the same heap, CPU count and GC.
   evidence:

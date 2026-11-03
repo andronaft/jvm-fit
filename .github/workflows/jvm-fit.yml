@@ -1,0 +1,28 @@
+# Example: check the manifests in examples/ on every pull request. Findings
+# show up as annotations on the changed files and in GitHub code scanning.
+# In your repository use andronaft/jvm-fit@<version> instead of ./
+name: jvm-fit
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          path: examples/k8s
+          fail-on: high
+          sarif-file: jvm-fit.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('jvm-fit.sarif') != ''
+        with:
+          sarif_file: jvm-fit.sarif
+          category: jvm-fit

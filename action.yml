@@ -1,0 +1,111 @@
+name: jvm-fit
+description: Check JVM settings against Kubernetes limits and annotate the pull request
+author: andronaft
+branding:
+  icon: cpu
+  color: orange
+
+inputs:
+  path:
+    description: Files or directories to scan, separated by spaces or new lines. Chart and Kustomize directories are rendered.
+    default: .
+  helm:
+    description: Helm charts to render (repo/chart, OCI reference or URL), one per line
+    default: ""
+  values:
+    description: Values files for the charts, one per line
+    default: ""
+  set:
+    description: Chart values, key=value, one per line
+    default: ""
+  fail-on:
+    description: Fail the step when a finding has this severity or higher (critical, high, medium, low, info, none)
+    default: high
+  nonheap-estimate:
+    description: Memory the JVM needs outside the heap
+    default: 350Mi
+  flags-env:
+    description: More env vars that your entrypoint passes to java, comma-separated
+    default: ""
+  sarif-file:
+    description: Also write a SARIF report to this file, for github/codeql-action/upload-sarif
+    default: ""
+  summary:
+    description: Add the text report to the job summary
+    default: "true"
+
+outputs:
+  findings:
+    description: Number of findings
+    value: ${{ steps.scan.outputs.findings }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check for Go
+      id: go
+      shell: bash
+      run: |
+        if command -v go >/dev/null; then echo "found=true" >> "$GITHUB_OUTPUT"; else echo "found=false" >> "$GITHUB_OUTPUT"; fi
+
+    - name: Set up Go
+      if: steps.go.outputs.found != 'true'
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ github.action_path }}/go.mod
+        cache: false
+
+    - name: Build jvm-fit
+      shell: bash
+      env:
+        GOTOOLCHAIN: auto
+        VERSION: ${{ github.action_ref }}
+      run: |
+        cd "$GITHUB_ACTION_PATH"
+        go build -trimpath -ldflags "-X main.version=${VERSION:-dev}" -o "$RUNNER_TEMP/jvm-fit/jvm-fit" ./cmd/jvm-fit
+        echo "$RUNNER_TEMP/jvm-fit" >> "$GITHUB_PATH"
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        IN_PATH: ${{ inputs.path }}
+        IN_HELM: ${{ inputs.helm }}
+        IN_VALUES: ${{ inputs.values }}
+        IN_SET: ${{ inputs.set }}
+        IN_FAIL_ON: ${{ inputs.fail-on }}
+        IN_NONHEAP: ${{ inputs.nonheap-estimate }}
+        IN_FLAGS_ENV: ${{ inputs.flags-env }}
+        IN_SARIF: ${{ inputs.sarif-file }}
+        IN_SUMMARY: ${{ inputs.summary }}
+      run: |
+        args=()
+        read -r -d '' -a paths <<<"$IN_PATH" || true
+        args+=("${paths[@]}")
+        while IFS= read -r v; do [[ -n "$v" ]] && args+=("--helm=$v"); done <<<"$IN_HELM"
+        while IFS= read -r v; do [[ -n "$v" ]] && args+=("--values=$v"); done <<<"$IN_VALUES"
+        while IFS= read -r v; do [[ -n "$v" ]] && args+=("--set=$v"); done <<<"$IN_SET"
+        args+=("--nonheap-estimate=$IN_NONHEAP")
+        [[ -n "$IN_FLAGS_ENV" ]] && args+=("--flags-env=$IN_FLAGS_ENV")
+
+        # Annotations. The exit code of this run decides the step result.
+        out="$RUNNER_TEMP/jvm-fit/annotations.txt"
+        code=0
+        jvm-fit scan "${args[@]}" --format=github --fail-on="$IN_FAIL_ON" >"$out" || code=$?
+        cat "$out"
+        if [[ $code -eq 2 ]]; then exit 2; fi
+        echo "findings=$(grep -c '^::' "$out" || true)" >> "$GITHUB_OUTPUT"
+
+        if [[ "$IN_SUMMARY" == "true" ]]; then
+          {
+            echo '### jvm-fit'
+            echo
+            echo '```'
+            jvm-fit scan "${args[@]}" --fail-on=none
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [[ -n "$IN_SARIF" ]]; then
+          jvm-fit scan "${args[@]}" --format=sarif --output="$IN_SARIF" --fail-on=none
+        fi
+        exit $code
