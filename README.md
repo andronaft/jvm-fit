@@ -20,6 +20,14 @@ Right-sizing tools such as KRR and Goldilocks recommend container resources
 ("give it 2Gi") but do not tell you that `-Xmx` must change too. jvm-fit
 checks both together.
 
+## Demo
+
+A Spring Boot pod on a real cluster is OOMKilled with the heap at about 50%.
+jvm-fit explains why from the manifest, and its fix keeps the pod up under the
+same load ([how to run it](demo/README.md)):
+
+![jvm-fit demo](docs/demo.gif)
+
 ## Example
 
 ```
@@ -47,7 +55,7 @@ payments-api (Deployment, container: app)  image: eclipse-temurin:17-jre
   MEDIUM   JVM012  No startup probe; liveness starts after 10s
                    fix: add a startupProbe (for example periodSeconds: 5, failureThreshold: 24 for up to 120s)
   INFO     JVM006  Heap is fixed with -Xmx900m (JAVA_TOOL_OPTIONS) and will not follow changes to the limit
-                   fix: replace it with -XX:MaxRAMPercentage=70
+                   fix: replace it with -XX:MaxRAMPercentage, with the value from the memory budget fix (JVM002 or JVM003)
 
 5 findings (1 high, 3 medium, 1 info) in 1 of 1 workloads
 ```
@@ -247,6 +255,7 @@ what is not measured yet.
 make test       # unit tests
 make lint       # gofmt + go vet
 make evidence   # model vs real JVMs in Docker
+make demo       # OOMKill and fix on a kind cluster
 ```
 
 Rules live in `internal/rules`, one file per rule, each with a test that has

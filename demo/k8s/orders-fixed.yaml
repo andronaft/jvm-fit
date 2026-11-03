@@ -1,0 +1,28 @@
+# Fixed with what jvm-fit suggests. The same app with the same load.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+spec:
+  selector:
+    matchLabels:
+      app: orders
+  template:
+    metadata:
+      labels:
+        app: orders
+    spec:
+      containers:
+        - name: app
+          image: jvm-fit-demo/orders:1.0.0
+          imagePullPolicy: Never
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=55 -XX:+UseG1GC"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 832Mi
+            limits:
+              cpu: "1"
+              memory: 832Mi

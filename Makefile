@@ -1,7 +1,7 @@
 BIN := bin/jvm-fit
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
-.PHONY: build test vet lint evidence evidence-table
+.PHONY: build test vet lint evidence evidence-table demo demo-clean
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BIN) ./cmd/jvm-fit
 
@@ -21,3 +21,11 @@ evidence:
 # Regenerate docs/evidence/results.md (needs Docker, takes a few minutes).
 evidence-table:
 	docs/evidence/run.sh > docs/evidence/results.md
+
+# Real cluster demo: OOMKill, jvm-fit, fix, stable (needs Docker and kind).
+demo:
+	demo/setup.sh
+	demo/run.sh
+
+demo-clean:
+	demo/cleanup.sh
