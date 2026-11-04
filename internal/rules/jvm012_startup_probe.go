@@ -18,6 +18,7 @@ container again and again (CrashLoopBackOff).
 
 Fix: add a startupProbe with enough failureThreshold × periodSeconds for a
 slow start. Liveness checks begin only after the startup probe succeeds.`,
+		Refs: []string{refProbes, refProbesHowTo},
 		Check: func(c *model.Container) *Finding {
 			lp := c.Container.LivenessProbe
 			if lp == nil || c.Container.StartupProbe != nil || lp.InitialDelaySeconds >= 30 {

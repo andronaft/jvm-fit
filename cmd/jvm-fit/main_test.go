@@ -134,6 +134,9 @@ func TestExplain(t *testing.T) {
 	if err != nil || !strings.Contains(out, "SerialGC") {
 		t.Errorf("explain: %v\n%s", err, out)
 	}
+	if !strings.Contains(out, "See also:\n  https://") {
+		t.Errorf("explain has no links:\n%s", out)
+	}
 	out, err = run("explain")
 	if err != nil || strings.Count(out, "\n") != 12 {
 		t.Errorf("rule list: %v\n%s", err, out)

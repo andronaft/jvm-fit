@@ -38,6 +38,18 @@ func ParseSeverity(s string) (Severity, error) {
 	return 0, fmt.Errorf("unknown severity %q (want one of %s)", s, strings.Join(severityNames, ", "))
 }
 
+// Links for Rule.Refs.
+const (
+	refJavaMan          = "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html"
+	refCollectors       = "https://docs.oracle.com/en/java/javase/21/gctuning/available-collectors.html"
+	refNMT              = "https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html"
+	refContainerSupport = "https://bugs.openjdk.org/browse/JDK-8146115"
+	refK8sResources     = "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
+	refProbes           = "https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/"
+	refProbesHowTo      = "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+	refEvidence         = "https://github.com/andronaft/jvm-fit/blob/main/docs/evidence/README.md"
+)
+
 // Rule is one check.
 type Rule struct {
 	ID string
@@ -48,6 +60,8 @@ type Rule struct {
 	Title string
 	// Explain is the long text for "jvm-fit explain".
 	Explain string
+	// Refs are links with more detail, for "jvm-fit explain".
+	Refs []string
 	// Check returns a finding or nil.
 	Check func(c *model.Container) *Finding
 }

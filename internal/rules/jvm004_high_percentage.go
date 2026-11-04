@@ -18,6 +18,7 @@ much less than a Spring Boot service needs.
 
 Fix: use 70-75 for a normal service. Go higher only with a large limit and a
 measured small non-heap.`,
+		Refs: []string{refJavaMan},
 		Check: func(c *model.Container) *Finding {
 			if c.HeapSource != model.HeapFromPercentage || c.HeapPercent <= 80 {
 				return nil

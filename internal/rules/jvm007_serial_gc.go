@@ -20,6 +20,7 @@ Measured on JDK 11, 17 and 21: 1Gi + 2 CPUs gives SerialGC, and so does
 
 Fix: set the GC explicitly (-XX:+UseG1GC, or -XX:+UseParallelGC for small
 batch jobs), or raise the limits.`,
+		Refs: []string{refCollectors, refEvidence},
 		Check: func(c *model.Container) *Finding {
 			if c.GCExplicit || c.GC != "Serial" {
 				return nil

@@ -14,6 +14,7 @@ on the node size: the same pod gets 1Gi of heap on a 4Gi node and 16Gi on a
 64Gi node, and the scheduler does not know about it.
 
 Fix: set resources.limits.memory. The heap is then a percentage of the limit.`,
+		Refs: []string{refK8sResources, refJavaMan, refEvidence},
 		Check: func(c *model.Container) *Finding {
 			if c.MemLimit > 0 || c.HeapSource == model.HeapFromXmx || c.Flags.Flags.MaxRAM.Set {
 				return nil

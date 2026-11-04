@@ -15,6 +15,7 @@ right-sizing rounds the two drift apart: the heap no longer fits, or most of
 the limit is unused.
 
 Fix: replace -Xmx with -XX:MaxRAMPercentage so the heap follows the limit.`,
+		Refs: []string{refJavaMan},
 		Check: func(c *model.Container) *Finding {
 			if c.HeapSource != model.HeapFromXmx {
 				return nil

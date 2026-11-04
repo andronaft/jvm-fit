@@ -22,6 +22,7 @@ The non-heap number is an estimate. Change it with --nonheap-estimate.
 
 Fix: leave room for non-heap (MaxRAMPercentage 70-75 for most services) or
 raise the memory limit.`,
+		Refs: []string{refNMT, refK8sResources},
 		Check: func(c *model.Container) *Finding {
 			if c.MemLimit == 0 || c.HeapMax == 0 || c.Needed() <= c.MemLimit {
 				return nil

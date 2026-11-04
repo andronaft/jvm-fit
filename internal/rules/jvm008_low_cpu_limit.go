@@ -18,6 +18,7 @@ gets slow (and probes start failing) and GC pauses get longer.
 
 Fix: raise the limit to at least 1 core, or set only a CPU request and no
 CPU limit.`,
+		Refs: []string{refK8sResources},
 		Check: func(c *model.Container) *Finding {
 			if c.CPULimit == 0 || c.CPULimit >= 1000 {
 				return nil

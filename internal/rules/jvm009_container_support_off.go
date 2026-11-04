@@ -17,6 +17,7 @@ Measured on JDK 11, 17 and 21 with a 1Gi limit: the heap is 25% of the
 host memory and the GC is G1, as if there were no container.
 
 Fix: remove -XX:-UseContainerSupport (it is on by default since JDK 10 and 8u191).`,
+		Refs: []string{refContainerSupport, refJavaMan, refEvidence},
 		Check: func(c *model.Container) *Finding {
 			if c.ContainerSupport {
 				return nil

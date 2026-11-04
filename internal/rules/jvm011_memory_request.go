@@ -17,6 +17,7 @@ the scheduler counts only the request, so under node memory pressure the pod
 is among the first to be evicted.
 
 Fix: set the memory request equal to the limit.`,
+		Refs: []string{refK8sResources},
 		Check: func(c *model.Container) *Finding {
 			if c.MemRequest == 0 || c.MemLimit == 0 || c.MemRequest >= c.MemLimit {
 				return nil

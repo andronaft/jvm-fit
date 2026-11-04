@@ -17,6 +17,7 @@ container (OOMKilled) before the JVM can throw OutOfMemoryError.
 
 Fix: make -Xmx smaller than the limit minus non-heap, or raise the limit.
 Better: drop -Xmx and use -XX:MaxRAMPercentage so the heap follows the limit.`,
+		Refs: []string{refJavaMan, refK8sResources},
 		Check: func(c *model.Container) *Finding {
 			if c.HeapSource != model.HeapFromXmx || c.MemLimit == 0 || c.HeapMax < c.MemLimit {
 				return nil

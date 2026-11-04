@@ -14,8 +14,8 @@ func TestAllRulesRegistered(t *testing.T) {
 		if want := fmt.Sprintf("JVM%03d", i+1); r.ID != want {
 			t.Errorf("rule %d is %s, want %s", i, r.ID, want)
 		}
-		if r.Name == "" || r.Title == "" || r.Explain == "" || r.Check == nil {
-			t.Errorf("%s is missing title, explain or check", r.ID)
+		if r.Name == "" || r.Title == "" || r.Explain == "" || r.Check == nil || len(r.Refs) == 0 {
+			t.Errorf("%s is missing title, explain, check or refs", r.ID)
 		}
 	}
 }

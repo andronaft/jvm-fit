@@ -19,6 +19,7 @@ used: you pay for memory the JVM will not touch, or the heap is too small.
 OpenJ9 has different defaults (50-75%), so this rule only applies to HotSpot.
 
 Fix: -XX:MaxRAMPercentage=70 (or 75).`,
+		Refs: []string{refEvidence},
 		Check: func(c *model.Container) *Finding {
 			if c.HeapSource != model.HeapDefault || c.MemLimit == 0 || c.Detect.Runtime != detect.HotSpot || !c.ContainerSupport {
 				return nil

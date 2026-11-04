@@ -21,6 +21,7 @@ the container is throttled.
 
 Fix: make ActiveProcessorCount at most the CPU limit (rounded up), or raise
 the limit.`,
+		Refs: []string{refContainerSupport, refJavaMan},
 		Check: func(c *model.Container) *Finding {
 			apc := c.Flags.Flags.ActiveProcessorCount
 			if !apc.Set || c.CPULimit == 0 {
