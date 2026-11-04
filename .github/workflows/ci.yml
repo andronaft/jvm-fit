@@ -39,6 +39,15 @@ jobs:
           ./bin/jvm-fit scan internal/loader/testdata/kustomize/overlays/prod --fail-on none
 
   # Runs the GitHub Action from this checkout on testdata/.
+  release-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: '~> v2'
+          args: check
+
   action:
     runs-on: ubuntu-latest
     steps:

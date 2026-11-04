@@ -1,0 +1,54 @@
+version: 2
+
+project_name: jvm-fit
+
+builds:
+  - main: ./cmd/jvm-fit
+    binary: jvm-fit
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+
+release:
+  prerelease: auto
+
+homebrew_casks:
+  - name: jvm-fit
+    binaries: [jvm-fit]
+    repository:
+      owner: andronaft
+      name: homebrew-tap
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
+    homepage: https://github.com/andronaft/jvm-fit
+    description: Check if the JVM fits in its Kubernetes container
+    commit_author:
+      name: andronaft
+      email: andronaft99@gmail.com
+    commit_msg_template: Update jvm-fit to {{ .Tag }}
+    # Without a token the cask stays in dist/ and the release workflow keeps
+    # it as an artifact.
+    skip_upload: '{{ if .Env.HOMEBREW_TAP_TOKEN }}auto{{ else }}true{{ end }}'
+    # The binary is not signed or notarized.
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/jvm-fit"]
+          end
