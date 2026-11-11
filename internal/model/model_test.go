@@ -154,3 +154,31 @@ func TestRecommend(t *testing.T) {
 		}
 	}
 }
+
+// Measured on JDK 17 with -XX:MaxRAM=1g: -Xms768m gives MaxHeapSize 768M,
+// with or without -XX:MaxRAMPercentage=50; without -Xms it is 256M.
+func TestXmsRaisesMaxHeap(t *testing.T) {
+	tests := []struct {
+		opts   string
+		heapMi int64
+		source HeapSource
+	}{
+		{"-Xms768m", 768, HeapFromXms},
+		{"-Xms768m -XX:MaxRAMPercentage=50", 768, HeapFromXms},
+		{"-XX:InitialHeapSize=768m", 768, HeapFromXms},
+		{"-Xms128m", 256, HeapDefault},
+		{"-Xms256m -XX:MaxRAMPercentage=50", 512, HeapFromPercentage},
+		{"-Xms768m -Xmx600m", 600, HeapFromXmx},
+	}
+	for _, tt := range tests {
+		c := Build(loader.Workload{}, container("eclipse-temurin:17", "1Gi", "1", tt.opts), nil, Options{})
+		if c.HeapMax != tt.heapMi*mi || c.HeapSource != tt.source {
+			t.Errorf("%s: heap = %dMi %s, want %dMi %s", tt.opts, c.HeapMax/mi, c.HeapSource, tt.heapMi, tt.source)
+		}
+	}
+	// OpenJ9 has its own rules; the model leaves it alone.
+	c := Build(loader.Workload{}, container("ibm-semeru-runtimes:open-17-jre", "1Gi", "1", "-Xms768m"), nil, Options{})
+	if c.HeapSource == HeapFromXms {
+		t.Errorf("OpenJ9: heap source = %s", c.HeapSource)
+	}
+}

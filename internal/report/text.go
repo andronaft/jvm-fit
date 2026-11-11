@@ -115,6 +115,8 @@ func heapLabel(m *model.Container) string {
 	switch m.HeapSource {
 	case model.HeapFromXmx:
 		return "heap max (-Xmx)"
+	case model.HeapFromXms:
+		return "heap max (-Xms)"
 	case model.HeapFromPercentage:
 		return fmt.Sprintf("heap max (%s%%)", trimFloat(m.HeapPercent))
 	default:
