@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: andronaft/jvm-fit@v0.1.0
+      - uses: andronaft/jvm-fit@v0.1.1
         with:
           path: k8s/
           fail-on: high
@@ -49,7 +49,7 @@ permissions:
   security-events: write
 steps:
   - uses: actions/checkout@v7
-  - uses: andronaft/jvm-fit@v0.1.0
+  - uses: andronaft/jvm-fit@v0.1.1
     with:
       path: k8s/
       sarif-file: jvm-fit.sarif
