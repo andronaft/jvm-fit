@@ -39,7 +39,10 @@ type HeapSource string
 const (
 	HeapFromXmx        HeapSource = "xmx"
 	HeapFromPercentage HeapSource = "percentage"
-	HeapDefault        HeapSource = "default"
+	// HeapFromXms: -Xms is larger than the heap the JVM would pick, so it
+	// becomes the max heap.
+	HeapFromXms HeapSource = "xms"
+	HeapDefault HeapSource = "default"
 )
 
 // Options tune the model.
@@ -67,7 +70,7 @@ type Container struct {
 	// HeapMax is the max heap in bytes, 0 if it depends on the node.
 	HeapMax     int64
 	HeapSource  HeapSource
-	HeapPercent float64 // percentage used when HeapSource is not xmx
+	HeapPercent float64 // percentage used when HeapSource is percentage or default
 	// HeapDefaultNote explains a default heap, e.g. "25% of the limit".
 	HeapDefaultNote string
 
@@ -117,6 +120,7 @@ func Build(w loader.Workload, lc loader.Container, assumedEnv []string, opts Opt
 	f := &c.Flags.Flags
 	c.ContainerSupport = !f.UseContainerSupport.Set || f.UseContainerSupport.V
 	c.heap()
+	c.xmsFloor()
 	c.cpus()
 	c.gc()
 	return c
@@ -194,6 +198,22 @@ func (c *Container) heap() {
 		return
 	}
 	c.HeapMax, c.HeapPercent, c.HeapDefaultNote = hotspotDefaultHeap(mem, f)
+}
+
+// xmsFloor raises a max heap that HotSpot works out itself (default or
+// MaxRAMPercentage) to -Xms, as Arguments::set_heap_size does. Measured on
+// JDK 17: -Xms768m with 1G of memory gives MaxHeapSize 768M, with or without
+// -XX:MaxRAMPercentage=50.
+func (c *Container) xmsFloor() {
+	f := &c.Flags.Flags
+	if !f.InitialHeap.Set || f.MaxHeap.Set || c.Detect.Runtime == detect.OpenJ9 {
+		return
+	}
+	if c.HeapMax == 0 || f.InitialHeap.V <= c.HeapMax {
+		return
+	}
+	c.HeapMax, c.HeapSource = f.InitialHeap.V, HeapFromXms
+	c.HeapPercent, c.HeapDefaultNote = 0, ""
 }
 
 // hotspotDefaultHeap mirrors Arguments::set_heap_size when no heap flag is set.

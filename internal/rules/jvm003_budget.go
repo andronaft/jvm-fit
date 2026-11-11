@@ -34,6 +34,14 @@ raise the memory limit.`,
 			over := c.Needed() - c.MemLimit
 			newLimit := model.RecommendedLimit(c.HeapMax, c.NonHeap)
 			fix := fmt.Sprintf("raise the memory limit to %s", quantity.Human(newLimit))
+			if c.HeapSource == model.HeapFromXms {
+				// -Xms sets the heap here, so a percentage would not lower it.
+				return &Finding{
+					Message: fmt.Sprintf("Heap + non-heap needs ~%s, limit is %s (over by ~%s) → OOMKilled under load",
+						quantity.Mi(c.Needed()), quantity.Mi(c.MemLimit), quantity.Mi(over)),
+					Fix: fmt.Sprintf("%s raises the max heap: lower it or %s", c.Flags.Flags.InitialHeap.Raw, fix),
+				}
+			}
 			if p := model.RecommendedPercentage(newLimit, c.NonHeap); p > 0 {
 				fix = fmt.Sprintf("-XX:MaxRAMPercentage=%d and memory limit %s", p, quantity.Human(newLimit))
 			}
