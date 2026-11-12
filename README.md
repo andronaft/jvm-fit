@@ -118,6 +118,8 @@ jvm-fit is a static check. It does not see your app's real memory use, and it
 does not read live clusters yet. Both are planned for v0.2, using Prometheus
 metrics.
 
+How the rules were measured: [Why a Java pod gets OOMKilled with a half-empty heap](https://zhukovskyi.space/blog/jvm-oomkilled-kubernetes/). Made by [Andrii Zhukovskyi](https://zhukovskyi.space/).
+
 ## License
 
 [Apache-2.0](LICENSE)
