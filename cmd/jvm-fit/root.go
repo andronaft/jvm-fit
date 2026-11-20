@@ -21,7 +21,7 @@ func newRootCmd() *cobra.Command {
 		Use:   "jvm-fit",
 		Short: "Check if the JVM fits in its Kubernetes container",
 		Long: `jvm-fit reads Kubernetes manifests together with JVM flags
-(JAVA_TOOL_OPTIONS, JDK_JAVA_OPTIONS, JAVA_OPTS, command and args)
+(JAVA_TOOL_OPTIONS, JDK_JAVA_OPTIONS, _JAVA_OPTIONS, JAVA_OPTS, command and args)
 and tells you, before deploy, if the JVM will fit in the container.`,
 		Version:       version,
 		SilenceUsage:  true,
