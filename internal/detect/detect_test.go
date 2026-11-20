@@ -26,6 +26,8 @@ func TestContainer(t *testing.T) {
 		{"app image with java command", loader.Container{Image: "ghcr.io/acme/payments:1.4.2", Command: []string{"java", "-jar", "/app.jar"}}, true, HotSpot, 0},
 		{"app image with sh -c java", loader.Container{Image: "acme/api:3", Command: []string{"sh", "-c", "exec java $JAVA_OPTS -jar app.jar"}}, true, HotSpot, 0},
 		{"app image with JAVA_TOOL_OPTIONS", loader.Container{Image: "acme/api:3", Env: []loader.EnvVar{{Name: "JAVA_TOOL_OPTIONS", Value: "-Xmx1g"}}}, true, HotSpot, 0},
+		{"app image with _JAVA_OPTIONS", loader.Container{Image: "acme/api:3", Env: []loader.EnvVar{{Name: "_JAVA_OPTIONS", Value: "-Xmx1g"}}}, true, HotSpot, 0},
+		{"openj9 by env var", loader.Container{Image: "acme/api:3", Env: []loader.EnvVar{{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx1g"}}}, true, OpenJ9, 0},
 		{"openj9 by flag", loader.Container{Image: "acme/api:3", Env: []loader.EnvVar{{Name: "JAVA_OPTS", Value: "-Xgcpolicy:gencon"}}}, true, OpenJ9, 0},
 		{"nginx", loader.Container{Image: "nginx:1.27"}, false, HotSpot, 0},
 		{"javascript is not java", loader.Container{Image: "node:20", Command: []string{"node", "server.js"}}, false, HotSpot, 0},

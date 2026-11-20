@@ -10,6 +10,8 @@ Every number the model uses is checked on a real JVM. There are two parts:
    [`internal/model/docker_evidence_test.go`](../../internal/model/docker_evidence_test.go):
    builds the model for a container spec, starts the same JVM in Docker with
    the same limits and flags, and fails if heap (±2%), CPU count or GC differ.
+   `TestDockerEvidenceEnvOrder` does the same for the order of the env vars
+   the JVM reads (`JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`...), on OpenJ9 21 too.
    It runs in CI on every push (`evidence` job) and locally with
    `make evidence`.
 
@@ -44,6 +46,8 @@ HotSpot, the same on JDK 11, 17 and 21:
 | **2 CPUs but 1g memory → still SerialGC** (G1 needs 2+ CPUs *and* ~1792MiB) | 1g / 2 | JVM007 |
 | `ActiveProcessorCount=2` with 1g → still SerialGC; with ~2g → G1 | flag rows | JVM007, JVM010 |
 | `-XX:-UseContainerSupport` with a 1g limit → heap 498M (25% of the *host*), G1 | flag rows | JVM009 |
+| `-XX:MaxRAM` **replaces** the memory the heap is sized from, above or below the limit: 1g + `MaxRAM=4g` → **1024M**, + `MaxRAMPercentage=50` → 2048M, `MaxRAM=512m` → 128M | `TestDockerEvidence` | model, JVM002/JVM003/JVM005 |
+| `-XX:MaxRAM` does **not** change the GC choice: no limit, 2 CPUs, `MaxRAM=1g` → still G1 | manual run, 2026-11-20 | model, JVM007 |
 
 OpenJ9 21 (Semeru):
 
@@ -52,6 +56,18 @@ OpenJ9 21 (Semeru):
 | Without heap flags the max heap is **50% of the limit**: 256m → 128M, 512m → 256M, 1g → 512M | 256m–1g |
 | `MaxRAMPercentage=75` works the same as in HotSpot: 1g → 768M | 1g + flag |
 | CPU count follows the CPU limit like HotSpot | all |
+| `-XX:MaxRAM` is ignored: 1g + `MaxRAM=4g` or `MaxRAM=512m` → 512M, as without it | manual run, 2026-11-20 |
+
+Env vars the JVM reads itself, checked by `TestDockerEvidenceEnvOrder` (each
+source sets a different `-Xmx`, later wins):
+
+| Finding | JVMs |
+|---|---|
+| `_JAVA_OPTIONS` is read last and **beats the command line** | JDK 11, 17, 21, OpenJ9 21 |
+| `JDK_JAVA_OPTIONS` beats `JAVA_TOOL_OPTIONS` | JDK 11, 17, 21, OpenJ9 21 |
+| `OPENJ9_JAVA_OPTIONS` beats `JAVA_TOOL_OPTIONS`, loses to `JDK_JAVA_OPTIONS` and the command line | OpenJ9 21 |
+| `IBM_JAVA_OPTIONS` (old name) beats `OPENJ9_JAVA_OPTIONS` | OpenJ9 21 |
+| `OPENJ9_JAVA_OPTIONS` is ignored by HotSpot | JDK 21 |
 
 ## TODO
 

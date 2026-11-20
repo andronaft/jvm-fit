@@ -187,6 +187,46 @@ func TestCollect(t *testing.T) {
 			wantSource: Source{Name: "JDK_JAVA_OPTIONS"},
 		},
 		{
+			name: "_JAVA_OPTIONS beats the command line",
+			in: Input{
+				Env: []EnvVar{
+					{Name: "_JAVA_OPTIONS", Value: "-Xmx300m"},
+					{Name: "JAVA_TOOL_OPTIONS", Value: "-Xmx200m"},
+					{Name: "JDK_JAVA_OPTIONS", Value: "-Xmx400m"},
+				},
+				Command: []string{"java", "-Xmx600m", "-jar", "app.jar"},
+			},
+			wantHeap:   300 * mi,
+			wantSource: Source{Name: "_JAVA_OPTIONS"},
+		},
+		{
+			name: "OPENJ9_JAVA_OPTIONS beats JAVA_TOOL_OPTIONS",
+			in: Input{Env: []EnvVar{
+				{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx300m"},
+				{Name: "JAVA_TOOL_OPTIONS", Value: "-Xmx200m"},
+			}},
+			wantHeap:   300 * mi,
+			wantSource: Source{Name: "OPENJ9_JAVA_OPTIONS"},
+		},
+		{
+			name: "IBM_JAVA_OPTIONS beats OPENJ9_JAVA_OPTIONS",
+			in: Input{Env: []EnvVar{
+				{Name: "IBM_JAVA_OPTIONS", Value: "-Xmx300m"},
+				{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx250m"},
+			}},
+			wantHeap:   300 * mi,
+			wantSource: Source{Name: "IBM_JAVA_OPTIONS"},
+		},
+		{
+			name: "JDK_JAVA_OPTIONS and the command line beat OPENJ9_JAVA_OPTIONS",
+			in: Input{Env: []EnvVar{
+				{Name: "JDK_JAVA_OPTIONS", Value: "-Xmx400m"},
+				{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx300m"},
+			}},
+			wantHeap:   400 * mi,
+			wantSource: Source{Name: "JDK_JAVA_OPTIONS"},
+		},
+		{
 			name:       "JAVA_OPTS is assumed",
 			in:         Input{Env: []EnvVar{{Name: "JAVA_OPTS", Value: "-Xmx1g"}}},
 			wantHeap:   gi,
@@ -238,8 +278,8 @@ func TestCollect(t *testing.T) {
 }
 
 func TestCollectUnresolved(t *testing.T) {
-	res := Collect(Input{Env: []EnvVar{{Name: "JAVA_TOOL_OPTIONS", FromRef: true}, {Name: "DB_PASSWORD", FromRef: true}}})
-	if !reflect.DeepEqual(res.Unresolved, []string{"JAVA_TOOL_OPTIONS"}) {
+	res := Collect(Input{Env: []EnvVar{{Name: "JAVA_TOOL_OPTIONS", FromRef: true}, {Name: "DB_PASSWORD", FromRef: true}, {Name: "_JAVA_OPTIONS", FromRef: true}}})
+	if !reflect.DeepEqual(res.Unresolved, []string{"JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS"}) {
 		t.Errorf("Unresolved = %v", res.Unresolved)
 	}
 }

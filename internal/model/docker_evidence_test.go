@@ -40,6 +40,11 @@ func TestDockerEvidence(t *testing.T) {
 		{"2Gi", "1", "-XX:ActiveProcessorCount=2"},
 		{"4Gi", "4", ""},
 		{"4Gi", "4", "-XX:MaxRAMPercentage=70"},
+		// -XX:MaxRAM sizes the heap even above the limit, but not the GC.
+		{"1Gi", "1", "-XX:MaxRAM=4g"},
+		{"1Gi", "1", "-XX:MaxRAM=512m"},
+		{"1Gi", "1", "-XX:MaxRAM=4g -XX:MaxRAMPercentage=50"},
+		{"2Gi", "2", "-XX:MaxRAM=1g"},
 	}
 	for _, image := range images {
 		for _, tc := range cases {
@@ -66,6 +71,86 @@ func TestDockerEvidence(t *testing.T) {
 	}
 }
 
+// TestDockerEvidenceEnvOrder checks the order in which the JVM applies the
+// env vars it reads itself: every var and the command line set a different
+// -Xmx, and the model must pick the same one as the real JVM.
+func TestDockerEvidenceEnvOrder(t *testing.T) {
+	dockerHostMemory(t)
+	hotspot := []string{"eclipse-temurin:11-jre", "eclipse-temurin:17-jre", "eclipse-temurin:21-jre"}
+	openj9 := []string{"ibm-semeru-runtimes:open-21-jre"}
+	cases := []struct {
+		name   string
+		images []string
+		env    []loader.EnvVar
+		cmd    string // java options on the command line
+	}{
+		{"_JAVA_OPTIONS beats the command line", append(hotspot, openj9...), []loader.EnvVar{
+			{Name: "_JAVA_OPTIONS", Value: "-Xmx300m"},
+			{Name: "JAVA_TOOL_OPTIONS", Value: "-Xmx200m"},
+			{Name: "JDK_JAVA_OPTIONS", Value: "-Xmx400m"},
+		}, "-Xmx600m"},
+		{"JDK_JAVA_OPTIONS beats JAVA_TOOL_OPTIONS", append(hotspot, openj9...), []loader.EnvVar{
+			{Name: "JAVA_TOOL_OPTIONS", Value: "-Xmx200m"},
+			{Name: "JDK_JAVA_OPTIONS", Value: "-Xmx400m"},
+		}, ""},
+		{"OPENJ9_JAVA_OPTIONS beats JAVA_TOOL_OPTIONS", openj9, []loader.EnvVar{
+			{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx300m"},
+			{Name: "JAVA_TOOL_OPTIONS", Value: "-Xmx200m"},
+		}, ""},
+		{"IBM_JAVA_OPTIONS beats OPENJ9_JAVA_OPTIONS", openj9, []loader.EnvVar{
+			{Name: "IBM_JAVA_OPTIONS", Value: "-Xmx300m"},
+			{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx250m"},
+		}, ""},
+		{"JDK_JAVA_OPTIONS beats OPENJ9_JAVA_OPTIONS", openj9, []loader.EnvVar{
+			{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx300m"},
+			{Name: "JDK_JAVA_OPTIONS", Value: "-Xmx400m"},
+		}, ""},
+		{"the command line beats OPENJ9_JAVA_OPTIONS", openj9, []loader.EnvVar{
+			{Name: "OPENJ9_JAVA_OPTIONS", Value: "-Xmx300m"},
+		}, "-Xmx600m"},
+	}
+	for _, tc := range cases {
+		for _, image := range tc.images {
+			t.Run(image+"/"+tc.name, func(t *testing.T) {
+				c := container(image, "1Gi", "1", "")
+				c.Env = tc.env
+				c.Command = append([]string{"java"}, strings.Fields(tc.cmd)...)
+				m := Build(loader.Workload{}, c, nil, Options{})
+				if heap := runHeap(t, image, m.MemLimit, tc.env, tc.cmd); heap != m.HeapMax {
+					t.Errorf("heap: JVM %dMi, model %dMi (%s)", heap/mi, m.HeapMax/mi, m.Flags.Flags.MaxHeap.Source.Name)
+				}
+			})
+		}
+	}
+}
+
+// runHeap starts a JVM with the env vars and command-line options and
+// returns its max heap. -verbose:sizes is a fallback for OpenJ9 builds that
+// do not print MaxHeapSize with PrintFlagsFinal.
+func runHeap(t *testing.T, image string, mem int64, env []loader.EnvVar, opts string) int64 {
+	t.Helper()
+	args := []string{"run", "--rm", fmt.Sprintf("--memory=%d", mem)}
+	for _, e := range env {
+		args = append(args, "-e", e.Name+"="+e.Value)
+	}
+	args = append(append(args, image, "java"), strings.Fields(opts)...)
+	args = append(args, "-XX:+PrintFlagsFinal", "-verbose:sizes", "-version")
+	out, err := exec.Command("docker", args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("docker %v: %v\n%s", args, err, out)
+	}
+	if m := reHeap.FindSubmatch(out); m != nil {
+		heap, _ := strconv.ParseInt(string(m[1]), 10, 64)
+		return heap
+	}
+	m := reJ9Heap.FindSubmatch(out)
+	if m == nil {
+		t.Fatalf("no max heap in output:\n%s", out)
+	}
+	heap, _ := strconv.ParseInt(string(m[1]), 10, 64)
+	return heap << map[string]uint{"K": 10, "M": 20, "G": 30}[string(m[2])]
+}
+
 func dockerHostMemory(t *testing.T) int64 {
 	out, err := exec.Command("docker", "info", "--format", "{{.MemTotal}}").Output()
 	if err != nil {
@@ -83,6 +168,8 @@ var (
 	reAPC  = regexp.MustCompile(`\bActiveProcessorCount\s+=\s+(-?\d+)`)
 	reGC   = regexp.MustCompile(`\bUse(Serial|Parallel|G1|Z|Shenandoah)GC\s+=\s+true`)
 	reCPU  = regexp.MustCompile(`Effective CPU Count: (\d+)`)
+	// OpenJ9 -verbose:sizes: "  -Xmx300M        memory maximum".
+	reJ9Heap = regexp.MustCompile(`(?m)^\s*-Xmx(\d+)([KMG])\s+memory maximum`)
 )
 
 func runHotSpot(t *testing.T, image string, mem, milliCPU int64, flags string) (heap int64, cpus int, gc string) {

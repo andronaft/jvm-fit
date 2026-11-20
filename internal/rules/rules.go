@@ -116,6 +116,17 @@ func Run(c *model.Container) []Finding {
 
 // percentageFix names the MaxRAMPercentage to use, so a rule never suggests a
 // value that does not fit, or that disagrees with the memory budget fix.
+// heapOverLimit reports whether the heap alone reaches the memory limit: set
+// with -Xmx, or sized from -XX:MaxRAM.
+func heapOverLimit(c *model.Container) bool {
+	return c.MemLimit > 0 && c.HeapMax >= c.MemLimit && (c.HeapSource == model.HeapFromXmx || c.HeapFromMaxRAM)
+}
+
+// dropMaxRAM is the start of a fix for a heap sized from -XX:MaxRAM.
+func dropMaxRAM(c *model.Container) string {
+	return "remove " + c.Flags.Flags.MaxRAM.Raw + " (the heap is sized from it, not from the limit)"
+}
+
 func percentageFix(c *model.Container) string {
 	if c.MemLimit > 0 && c.Needed() > c.MemLimit {
 		return "-XX:MaxRAMPercentage, with the value from the memory budget fix (JVM002 or JVM003)"

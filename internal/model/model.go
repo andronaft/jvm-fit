@@ -8,6 +8,7 @@ package model
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/andronaft/jvm-fit/internal/detect"
 	"github.com/andronaft/jvm-fit/internal/flags"
@@ -71,8 +72,11 @@ type Container struct {
 	HeapMax     int64
 	HeapSource  HeapSource
 	HeapPercent float64 // percentage used when HeapSource is percentage or default
-	// HeapDefaultNote explains a default heap, e.g. "25% of the limit".
+	// HeapDefaultNote explains how the JVM worked out the heap, e.g. "25% of
+	// the limit".
 	HeapDefaultNote string
+	// HeapFromMaxRAM: the heap is sized from -XX:MaxRAM, not from the limit.
+	HeapFromMaxRAM bool
 
 	// CPUs is what the JVM uses as its processor count, 0 if it depends on the node.
 	CPUs      int
@@ -160,16 +164,26 @@ func fieldName(f string) string {
 }
 
 // visibleMemory is the memory the JVM treats as physical RAM, 0 if unknown.
+// HotSpot picks the GC from it.
 func (c *Container) visibleMemory() int64 {
-	f := &c.Flags.Flags
-	mem := int64(0)
 	if c.ContainerSupport {
-		mem = c.MemLimit
+		return c.MemLimit
 	}
-	if f.MaxRAM.Set && (mem == 0 || f.MaxRAM.V < mem) {
-		mem = f.MaxRAM.V
+	return 0
+}
+
+// heapMemory is the memory the heap is sized from, 0 if unknown. On HotSpot
+// an explicit -XX:MaxRAM replaces the visible memory, also when it is above
+// the limit, but it does not change the GC choice. OpenJ9 ignores MaxRAM.
+// Measured on JDK 11 and 21 with a 1Gi limit: -XX:MaxRAM=4g gives a 1024M
+// heap, -XX:MaxRAM=512m gives 128M; with no limit and 2 CPUs, -XX:MaxRAM=1g
+// still gives G1. On OpenJ9 21 with a 1Gi limit both -XX:MaxRAM=4g and
+// -XX:MaxRAM=512m give 512M, the same as without it.
+func (c *Container) heapMemory() (mem int64, fromMaxRAM bool) {
+	if f := &c.Flags.Flags; f.MaxRAM.Set && c.Detect.Runtime != detect.OpenJ9 {
+		return f.MaxRAM.V, true
 	}
-	return mem
+	return c.visibleMemory(), false
 }
 
 func (c *Container) heap() {
@@ -178,10 +192,17 @@ func (c *Container) heap() {
 		c.HeapMax, c.HeapSource = f.MaxHeap.V, HeapFromXmx
 		return
 	}
-	mem := c.visibleMemory()
+	mem, fromMaxRAM := c.heapMemory()
+	base := "the limit"
+	if fromMaxRAM {
+		base, c.HeapFromMaxRAM = f.MaxRAM.Raw, true
+	}
 	if f.MaxRAMPercentage.Set {
 		c.HeapSource, c.HeapPercent = HeapFromPercentage, f.MaxRAMPercentage.V
 		c.HeapMax = int64(float64(mem) * c.HeapPercent / 100)
+		if fromMaxRAM {
+			c.HeapDefaultNote = strconv.FormatFloat(c.HeapPercent, 'f', -1, 64) + "% of " + base
+		}
 		return
 	}
 	c.HeapSource = HeapDefault
@@ -197,7 +218,7 @@ func (c *Container) heap() {
 		c.HeapPercent = math.Round(float64(c.HeapMax) / float64(mem) * 100)
 		return
 	}
-	c.HeapMax, c.HeapPercent, c.HeapDefaultNote = hotspotDefaultHeap(mem, f)
+	c.HeapMax, c.HeapPercent, c.HeapDefaultNote = hotspotDefaultHeap(mem, f, base)
 }
 
 // xmsFloor raises a max heap that HotSpot works out itself (default or
@@ -217,20 +238,21 @@ func (c *Container) xmsFloor() {
 }
 
 // hotspotDefaultHeap mirrors Arguments::set_heap_size when no heap flag is set.
-func hotspotDefaultHeap(mem int64, f *flags.Flags) (int64, float64, string) {
+// base names the memory the heap is sized from, for the note.
+func hotspotDefaultHeap(mem int64, f *flags.Flags, base string) (int64, float64, string) {
 	minPct := hotspotMinRAMPercentage
 	if f.MinRAMPercentage.Set {
 		minPct = f.MinRAMPercentage.V
 	}
 	small := int64(float64(mem) * minPct / 100)
 	if small < hotspotDefaultMaxHeap {
-		return small, minPct, fmt.Sprintf("%.0f%% of the limit (MinRAMPercentage, small container)", minPct)
+		return small, minPct, fmt.Sprintf("%.0f%% of %s (MinRAMPercentage, small container)", minPct, base)
 	}
 	heap := int64(float64(mem) * hotspotMaxRAMPercentage / 100)
 	if heap < hotspotDefaultMaxHeap {
 		return hotspotDefaultMaxHeap, hotspotMaxRAMPercentage, "JVM minimum default of 126Mi"
 	}
-	return heap, hotspotMaxRAMPercentage, "25% of the limit (JVM default)"
+	return heap, hotspotMaxRAMPercentage, "25% of " + base + " (JVM default)"
 }
 
 // openj9DefaultHeap follows the OpenJ9 container defaults: 50% below 1 GiB,

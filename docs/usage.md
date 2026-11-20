@@ -62,8 +62,10 @@ The same for every format:
 2. **Find Java containers**: JDK/JRE images (Temurin, Corretto, Semeru, Zulu,
    Liberica, distroless/java, Tomcat...), a `java` command, or `JAVA_*` env vars.
 3. **Collect JVM flags** in the order the JVM applies them (later wins):
-   `JAVA_TOOL_OPTIONS` → `JDK_JAVA_OPTIONS` → `JAVA_OPTS`-style vars →
-   `command`/`args`. Kubernetes `$(VAR)` references and
+   `JAVA_TOOL_OPTIONS` → `OPENJ9_JAVA_OPTIONS` / `IBM_JAVA_OPTIONS` (OpenJ9
+   only) → `JDK_JAVA_OPTIONS` → `JAVA_OPTS`-style vars → `command`/`args` →
+   `_JAVA_OPTIONS`. `_JAVA_OPTIONS` is read last, so it wins even over the
+   command line. Kubernetes `$(VAR)` references and
    `sh -c "java $JAVA_OPTS ..."` are expanded. `JAVA_OPTS` works only if the
    entrypoint passes it to `java`, so jvm-fit marks those flags as **assumed**,
    unless the command uses the var directly. Vars from a ConfigMap or Secret

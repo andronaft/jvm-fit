@@ -141,7 +141,7 @@ func (p *printer) budget(m *model.Container) {
 		return
 	}
 	note := ""
-	if m.HeapSource == model.HeapDefault && m.HeapDefaultNote != "" {
+	if m.HeapDefaultNote != "" {
 		note = "   (" + m.HeapDefaultNote + ")"
 	}
 	p.f(row, heapLabel(m), quantity.Mi(m.HeapMax), note)

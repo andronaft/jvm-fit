@@ -6,11 +6,32 @@ import (
 	"strings"
 )
 
-// Env vars the JVM itself reads, in the order it applies them.
+// Env vars the JVM itself reads, in the order it applies them. Measured on
+// JDK 11, 17, 21 (HotSpot) and OpenJ9 21, see docs/evidence.
 const (
 	EnvToolOptions = "JAVA_TOOL_OPTIONS" // read by every JVM (HotSpot and OpenJ9)
-	EnvJDKOptions  = "JDK_JAVA_OPTIONS"  // read by the java launcher, JDK 9+
+	// OpenJ9 only; HotSpot ignores them. IBM_JAVA_OPTIONS is the old name and
+	// wins when both are set.
+	EnvOpenJ9Options = "OPENJ9_JAVA_OPTIONS"
+	EnvIBMOptions    = "IBM_JAVA_OPTIONS"
+	EnvJDKOptions    = "JDK_JAVA_OPTIONS" // read by the java launcher, JDK 9+
+	// EnvJavaOptions is read by every JVM after the command line, so it wins
+	// over everything else.
+	EnvJavaOptions = "_JAVA_OPTIONS"
 )
+
+// jvmEnvBefore are the vars the JVM reads before the command line, in order.
+var jvmEnvBefore = []string{EnvToolOptions, EnvOpenJ9Options, EnvIBMOptions, EnvJDKOptions}
+
+// IsJVMEnv reports whether the JVM reads this env var on its own.
+func IsJVMEnv(name string) bool {
+	return name == EnvJavaOptions || contains(jvmEnvBefore, name)
+}
+
+// IsOpenJ9Env reports whether only OpenJ9 reads this env var.
+func IsOpenJ9Env(name string) bool {
+	return name == EnvOpenJ9Options || name == EnvIBMOptions
+}
 
 // DefaultAssumedEnv are env vars that many images and start scripts pass to
 // java, but the JVM does not read on its own.
@@ -53,8 +74,9 @@ var valueOptions = map[string]bool{
 }
 
 // Collect gathers JVM options from env vars, command and args in the order the
-// JVM applies them: JAVA_TOOL_OPTIONS, JDK_JAVA_OPTIONS, assumed vars such as
-// JAVA_OPTS, then the command line.
+// JVM applies them: JAVA_TOOL_OPTIONS, OPENJ9_JAVA_OPTIONS and IBM_JAVA_OPTIONS
+// (OpenJ9), JDK_JAVA_OPTIONS, assumed vars such as JAVA_OPTS, the command
+// line, then _JAVA_OPTIONS.
 func Collect(in Input) Result {
 	var res Result
 	env := map[string]string{}
@@ -90,15 +112,14 @@ func Collect(in Input) Result {
 		if !e.FromRef {
 			continue
 		}
-		if e.Name == EnvToolOptions || e.Name == EnvJDKOptions || contains(assumed, e.Name) {
+		if IsJVMEnv(e.Name) || contains(assumed, e.Name) {
 			res.Unresolved = append(res.Unresolved, e.Name)
 		}
 	}
-	if v, ok := env[EnvToolOptions]; ok {
-		apply(Split(v), Source{Name: EnvToolOptions})
-	}
-	if v, ok := env[EnvJDKOptions]; ok {
-		apply(Split(v), Source{Name: EnvJDKOptions})
+	for _, name := range jvmEnvBefore {
+		if v, ok := env[name]; ok {
+			apply(Split(v), Source{Name: name})
+		}
 	}
 	for _, name := range assumed {
 		v, ok := env[name]
@@ -111,6 +132,9 @@ func Collect(in Input) Result {
 
 	tokens, src := commandTokens(cmdline, env)
 	apply(jvmOptions(tokens), src)
+	if v, ok := env[EnvJavaOptions]; ok {
+		apply(Split(v), Source{Name: EnvJavaOptions})
+	}
 	return res
 }
 

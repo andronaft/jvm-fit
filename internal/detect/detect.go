@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/andronaft/jvm-fit/internal/flags"
 	"github.com/andronaft/jvm-fit/internal/loader"
 )
 
@@ -46,13 +47,13 @@ var javaImages = []*regexp.Regexp{
 	regexp.MustCompile(`(^|[/-])(jdk|jre|java)([/-]|$)`),
 }
 
+// javaEnv are env vars that mark a Java container, besides the ones the JVM
+// reads itself (flags.IsJVMEnv).
 var javaEnv = map[string]bool{
-	"JAVA_TOOL_OPTIONS": true,
-	"JDK_JAVA_OPTIONS":  true,
-	"JAVA_OPTS":         true,
-	"JAVA_OPTIONS":      true,
-	"JVM_OPTS":          true,
-	"JAVA_HOME":         true,
+	"JAVA_OPTS":    true,
+	"JAVA_OPTIONS": true,
+	"JVM_OPTS":     true,
+	"JAVA_HOME":    true,
 }
 
 var openj9Image = regexp.MustCompile(`semeru|openj9|liberty|websphere`)
@@ -77,7 +78,7 @@ func Container(c loader.Container) Result {
 		}
 	}
 	for _, e := range c.Env {
-		if javaEnv[e.Name] {
+		if javaEnv[e.Name] || flags.IsJVMEnv(e.Name) {
 			r.Reasons = append(r.Reasons, "env "+e.Name)
 			break
 		}
@@ -88,7 +89,7 @@ func Container(c loader.Container) Result {
 		r.Runtime = OpenJ9
 	}
 	for _, e := range c.Env {
-		if strings.Contains(e.Value, "-Xgcpolicy:") || strings.Contains(e.Value, "-Xshareclasses") {
+		if flags.IsOpenJ9Env(e.Name) || strings.Contains(e.Value, "-Xgcpolicy:") || strings.Contains(e.Value, "-Xshareclasses") {
 			r.Runtime = OpenJ9
 		}
 	}

@@ -113,10 +113,39 @@ func TestXmxAndBudget(t *testing.T) {
 	}
 }
 
+// -XX:MaxRAM replaces the memory the heap is sized from, above or below the
+// limit, on HotSpot only. Measured on JDK 11 and 21 (see heapMemory).
 func TestMaxRAM(t *testing.T) {
-	c := Build(loader.Workload{}, container("eclipse-temurin:17", "", "", "-XX:MaxRAM=2g -XX:MaxRAMPercentage=50"), nil, Options{})
-	if c.HeapMax != 1024*mi {
-		t.Errorf("heap = %dMi, want 1024Mi", c.HeapMax/mi)
+	tests := []struct {
+		image, mem, cpu, opts string
+		wantHeap              int64 // Mi
+		wantMaxRAM            bool
+		wantNote              string
+	}{
+		{"eclipse-temurin:17", "", "", "-XX:MaxRAM=2g -XX:MaxRAMPercentage=50", 1024, true, "50% of -XX:MaxRAM=2g"},
+		{"eclipse-temurin:21", "1Gi", "1", "-XX:MaxRAM=4g", 1024, true, "25% of -XX:MaxRAM=4g (JVM default)"},
+		{"eclipse-temurin:21", "1Gi", "1", "-XX:MaxRAM=512m", 128, true, "25% of -XX:MaxRAM=512m (JVM default)"},
+		{"eclipse-temurin:21", "1Gi", "1", "-XX:MaxRAM=4g -XX:MaxRAMPercentage=50", 2048, true, "50% of -XX:MaxRAM=4g"},
+		{"eclipse-temurin:21", "1Gi", "1", "-XX:MaxRAM=4g -Xmx600m", 600, false, ""},
+		{"ibm-semeru-runtimes:open-21-jre", "1Gi", "1", "-XX:MaxRAM=4g", 512, false, "limit - 512Mi (OpenJ9 default for 1-2Gi)"},
+	}
+	for _, tc := range tests {
+		c := Build(loader.Workload{}, container(tc.image, tc.mem, tc.cpu, tc.opts), nil, Options{})
+		if c.HeapMax != tc.wantHeap*mi || c.HeapFromMaxRAM != tc.wantMaxRAM || c.HeapDefaultNote != tc.wantNote {
+			t.Errorf("%s %s %s: heap %dMi, fromMaxRAM %v, note %q; want %dMi, %v, %q",
+				tc.image, tc.mem, tc.opts, c.HeapMax/mi, c.HeapFromMaxRAM, c.HeapDefaultNote, tc.wantHeap, tc.wantMaxRAM, tc.wantNote)
+		}
+	}
+}
+
+// MaxRAM does not change the GC choice: with no limit the GC still depends
+// on the node, and with 2 CPUs and 2Gi it is G1 even with -XX:MaxRAM=1g.
+func TestMaxRAMKeepsGC(t *testing.T) {
+	for _, tc := range []struct{ mem, want string }{{"", ""}, {"2Gi", "G1"}} {
+		c := Build(loader.Workload{}, container("eclipse-temurin:21", tc.mem, "2", "-XX:MaxRAM=1g"), nil, Options{})
+		if c.GC != tc.want {
+			t.Errorf("limit %q: GC = %q, want %q", tc.mem, c.GC, tc.want)
+		}
 	}
 }
 
