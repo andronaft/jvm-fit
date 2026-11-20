@@ -64,7 +64,7 @@ jobs:
           FINDINGS: ${{ steps.report.outputs.findings }}
           SARIF: ${{ runner.temp }}/jvm-fit.sarif
         run: |
-          test "$FINDINGS" = 10 || { echo "findings = $FINDINGS, want 10"; exit 1; }
+          test "$FINDINGS" = 11 || { echo "findings = $FINDINGS, want 11"; exit 1; }
           grep -q '"version": "2.1.0"' "$SARIF"
       - name: Fail on high
         id: fail

@@ -1,0 +1,34 @@
+# Hint: glibc image, no CPU limit, and a limit that leaves ~162Mi above heap
+# plus non-heap. Without MALLOC_ARENA_MAX, glibc malloc arenas on a many-core
+# node can take that margin (JVM013). Add MALLOC_ARENA_MAX=2 to the env.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: catalog}
+  template:
+    metadata:
+      labels: {app: catalog}
+    spec:
+      containers:
+        - name: app
+          image: eclipse-temurin:21-jre
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC"
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+            limits:
+              memory: 2Gi
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: 8080}
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: 8080}
+            periodSeconds: 10

@@ -26,6 +26,9 @@ type Result struct {
 	Runtime Runtime
 	// Major is the Java version from the image tag (11, 17, 21), or 0 if unknown.
 	Major int
+	// Musl: the image name or tag says it is Alpine or musl based, so malloc
+	// is musl, not glibc. false also means unknown.
+	Musl bool
 }
 
 // javaImages match image names (without registry and tag) of JDK/JRE images
@@ -57,6 +60,10 @@ var javaEnv = map[string]bool{
 }
 
 var openj9Image = regexp.MustCompile(`semeru|openj9|liberty|websphere`)
+
+// muslImage matches images built on Alpine or another musl libc:
+// eclipse-temurin:21-jre-alpine, bellsoft/liberica-openjdk-alpine-musl.
+var muslImage = regexp.MustCompile(`(^|[^a-z])(alpine|musl)([^a-z]|$)`)
 
 // tagVersion finds the Java major version in a tag: 17-jre, 21.0.2_13-jdk, 11, jdk17, java21, 8u402.
 var tagVersion = regexp.MustCompile(`(?:^|[^0-9])(?:jdk|jre|java|open-)?(8|1[1-9]|2[0-9])(?:$|[^0-9])`)
@@ -93,6 +100,7 @@ func Container(c loader.Container) Result {
 			r.Runtime = OpenJ9
 		}
 	}
+	r.Musl = muslImage.MatchString(name) || muslImage.MatchString(tag)
 	if m := tagVersion.FindStringSubmatch(tag); m != nil {
 		r.Major, _ = strconv.Atoi(m[1])
 	}

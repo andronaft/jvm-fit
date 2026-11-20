@@ -79,6 +79,7 @@ exit codes and how the model works are in the [usage guide](docs/usage.md).
 | JVM010 | `ActiveProcessorCount` > CPU limit | medium |
 | JVM011 | Memory request < limit | low |
 | JVM012 | No startup probe and liveness `initialDelaySeconds` < 30 | medium |
+| JVM013 | Hint: glibc image, no `MALLOC_ARENA_MAX`, the JVM sees ≥ 4 CPUs (or has no CPU limit) and < 256Mi spare above heap + non-heap | low |
 
 ## Evidence
 

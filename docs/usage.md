@@ -76,6 +76,9 @@ The same for every format:
    - CPU count from the CPU limit (rounded up) or `ActiveProcessorCount`;
    - the GC the JVM picks: SerialGC unless it sees 2+ CPUs **and** ~1792Mi+;
    - memory budget: `heap max + non-heap estimate ≤ limit`.
+   - malloc: whether the image is Alpine/musl (from its name or tag) and
+     whether `MALLOC_ARENA_MAX` or a jemalloc/tcmalloc `LD_PRELOAD` is set,
+     for the glibc arena hint (JVM013).
 5. **Run the rules** and print findings with a fix.
 
 The non-heap number is an **estimate** (default 350Mi, typical for Spring

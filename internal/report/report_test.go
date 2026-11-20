@@ -96,11 +96,11 @@ func TestSARIFContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := log.Runs[0]
-	if run.Tool.Driver.Version != "1.2.3" || len(run.Tool.Driver.Rules) != 12 {
+	if run.Tool.Driver.Version != "1.2.3" || len(run.Tool.Driver.Rules) != 13 {
 		t.Errorf("driver = %+v", run.Tool.Driver)
 	}
-	if len(run.Results) != 10 {
-		t.Errorf("got %d results, want 10", len(run.Results))
+	if len(run.Results) != 11 {
+		t.Errorf("got %d results, want 11", len(run.Results))
 	}
 	levels := map[string]int{}
 	for _, r := range run.Results {
@@ -117,8 +117,8 @@ func TestSARIFContent(t *testing.T) {
 			t.Errorf("%s has no line", r.RuleID)
 		}
 	}
-	// 3 high → error, 5 medium → warning, 1 low + 1 info → note.
-	if levels["error"] != 3 || levels["warning"] != 5 || levels["note"] != 2 {
+	// 3 high → error, 5 medium → warning, 2 low + 1 info → note.
+	if levels["error"] != 3 || levels["warning"] != 5 || levels["note"] != 3 {
 		t.Errorf("levels = %v", levels)
 	}
 }
@@ -157,8 +157,8 @@ func TestGitHub(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	if len(lines) != 10 {
-		t.Fatalf("got %d annotations, want 10:\n%s", len(lines), buf.String())
+	if len(lines) != 11 {
+		t.Fatalf("got %d annotations, want 11:\n%s", len(lines), buf.String())
 	}
 	want := "::error file=testdata/payments-api.yaml,line=15,title=JVM003 MemoryBudgetExceeded::Heap + non-heap needs"
 	found := false
