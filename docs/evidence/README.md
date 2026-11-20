@@ -80,3 +80,7 @@ source sets a different `-Xmx`, later wins):
 - [ ] Rerun `run.sh` on cgroup v2 (current table is cgroup v1).
 - [ ] Amazon Corretto and Azul Zulu images.
 - [ ] Non-heap usage of a real Spring Boot app (to back the 350Mi default).
+- [ ] glibc malloc arena growth (JVM013): RSS with and without
+      `MALLOC_ARENA_MAX=2` on a many-core host. The rule is a hint from glibc
+      documentation and common practice; its thresholds (4 CPUs, 256Mi spare)
+      are not measured.

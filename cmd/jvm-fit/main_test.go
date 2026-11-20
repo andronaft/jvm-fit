@@ -41,7 +41,7 @@ func TestScanText(t *testing.T) {
 		"payments-api (Deployment, container: app)",
 		"needed                ~1250Mi   ❌ over limit by ~226Mi",
 		"HIGH     JVM003",
-		"in 3 of 4 workloads",
+		"in 4 of 5 workloads",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output does not contain %q:\n%s", want, out)
@@ -83,7 +83,7 @@ func TestScanJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &doc); err != nil {
 		t.Fatalf("invalid JSON: %v\n%s", err, out)
 	}
-	if doc.Summary.Workloads != 4 || doc.Summary.JavaContainers != 5 {
+	if doc.Summary.Workloads != 5 || doc.Summary.JavaContainers != 6 {
 		t.Errorf("summary = %+v", doc.Summary)
 	}
 	if doc.Summary.BySeverity["high"] != 3 {
@@ -138,7 +138,7 @@ func TestExplain(t *testing.T) {
 		t.Errorf("explain has no links:\n%s", out)
 	}
 	out, err = run("explain")
-	if err != nil || strings.Count(out, "\n") != 12 {
+	if err != nil || strings.Count(out, "\n") != 13 {
 		t.Errorf("rule list: %v\n%s", err, out)
 	}
 }

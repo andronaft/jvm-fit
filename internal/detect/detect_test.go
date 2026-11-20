@@ -6,6 +6,29 @@ import (
 	"github.com/andronaft/jvm-fit/internal/loader"
 )
 
+func TestMusl(t *testing.T) {
+	tests := []struct {
+		image string
+		musl  bool
+	}{
+		{"eclipse-temurin:21-jre-alpine", true},
+		{"eclipse-temurin:17-jdk-alpine3.20", true},
+		{"amazoncorretto:21-alpine", true},
+		{"bellsoft/liberica-openjdk-alpine-musl:21", true},
+		{"registry.example.com/base/alpine-java:17", true},
+		{"eclipse-temurin:21-jre", false},
+		{"eclipse-temurin:21-jre-jammy", false},
+		{"gcr.io/distroless/java17-debian12", false},
+		{"amazoncorretto:21-al2023", false},
+		{"ghcr.io/acme/alpineapp:1", false},
+	}
+	for _, tt := range tests {
+		if got := Container(loader.Container{Image: tt.image}).Musl; got != tt.musl {
+			t.Errorf("%s: Musl = %v, want %v", tt.image, got, tt.musl)
+		}
+	}
+}
+
 func TestContainer(t *testing.T) {
 	tests := []struct {
 		name    string

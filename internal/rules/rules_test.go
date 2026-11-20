@@ -7,8 +7,8 @@ import (
 
 func TestAllRulesRegistered(t *testing.T) {
 	all := All()
-	if len(all) != 12 {
-		t.Fatalf("got %d rules, want 12", len(all))
+	if len(all) != 13 {
+		t.Fatalf("got %d rules, want 13", len(all))
 	}
 	for i, r := range all {
 		if want := fmt.Sprintf("JVM%03d", i+1); r.ID != want {

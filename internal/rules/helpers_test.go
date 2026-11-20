@@ -14,6 +14,8 @@ type spec struct {
 	memRequest string
 	cpuLimit   string
 	opts       string // JAVA_TOOL_OPTIONS
+	env        []loader.EnvVar
+	command    []string
 	liveness   *loader.Probe
 	startup    *loader.Probe
 }
@@ -46,6 +48,8 @@ func (s spec) build(t *testing.T) *model.Container {
 	if s.opts != "" {
 		c.Env = []loader.EnvVar{{Name: "JAVA_TOOL_OPTIONS", Value: s.opts}}
 	}
+	c.Env = append(c.Env, s.env...)
+	c.Command = s.command
 	m := model.Build(loader.Workload{Kind: "Deployment", Name: "test"}, c, nil, model.Options{})
 	if m == nil {
 		t.Fatal("container not detected as Java")
