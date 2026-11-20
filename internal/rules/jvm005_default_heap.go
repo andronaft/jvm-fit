@@ -24,9 +24,18 @@ Fix: -XX:MaxRAMPercentage=70 (or 75).`,
 			if c.HeapSource != model.HeapDefault || c.MemLimit == 0 || c.Detect.Runtime != detect.HotSpot || !c.ContainerSupport {
 				return nil
 			}
+			// A MaxRAM above the limit makes the heap larger, not idle: JVM002
+			// and JVM003 cover it.
+			if c.HeapFromMaxRAM && c.Flags.Flags.MaxRAM.V > c.MemLimit {
+				return nil
+			}
+			fix := "add " + percentageFix(c)
+			if c.HeapFromMaxRAM {
+				fix = dropMaxRAM(c) + " and " + fix
+			}
 			return &Finding{
 				Message: "No heap setting: max heap is " + quantity.Mi(c.HeapMax) + " of " + quantity.Human(c.MemLimit) + " (" + c.HeapDefaultNote + ")",
-				Fix:     "add " + percentageFix(c),
+				Fix:     fix,
 			}
 		},
 	})

@@ -40,6 +40,11 @@ func TestDockerEvidence(t *testing.T) {
 		{"2Gi", "1", "-XX:ActiveProcessorCount=2"},
 		{"4Gi", "4", ""},
 		{"4Gi", "4", "-XX:MaxRAMPercentage=70"},
+		// -XX:MaxRAM sizes the heap even above the limit, but not the GC.
+		{"1Gi", "1", "-XX:MaxRAM=4g"},
+		{"1Gi", "1", "-XX:MaxRAM=512m"},
+		{"1Gi", "1", "-XX:MaxRAM=4g -XX:MaxRAMPercentage=50"},
+		{"2Gi", "2", "-XX:MaxRAM=1g"},
 	}
 	for _, image := range images {
 		for _, tc := range cases {

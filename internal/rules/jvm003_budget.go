@@ -28,7 +28,7 @@ raise the memory limit.`,
 				return nil
 			}
 			// JVM002 already covers a heap that alone does not fit.
-			if c.HeapSource == model.HeapFromXmx && c.HeapMax >= c.MemLimit {
+			if heapOverLimit(c) {
 				return nil
 			}
 			over := c.Needed() - c.MemLimit
@@ -47,6 +47,9 @@ raise the memory limit.`,
 			}
 			if p := model.RecommendedPercentage(c.MemLimit, c.NonHeap); p >= 50 {
 				fix += fmt.Sprintf(", or keep the limit and use -XX:MaxRAMPercentage=%d", p)
+			}
+			if c.HeapFromMaxRAM {
+				fix = dropMaxRAM(c) + ", then " + fix
 			}
 			return &Finding{
 				Message: fmt.Sprintf("Heap + non-heap needs ~%s, limit is %s (over by ~%s) → OOMKilled under load",

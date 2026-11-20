@@ -18,6 +18,8 @@ func TestJVM003(t *testing.T) {
 		{"Xms 768m over 50% of 1Gi", spec{memLimit: "1Gi", opts: "-Xms768m -XX:MaxRAMPercentage=50"}, true},
 		{"Xms 256m alone in 2Gi", spec{memLimit: "2Gi", opts: "-Xms256m"}, false},
 		{"Xms with a smaller Xmx", spec{memLimit: "1Gi", opts: "-Xms768m -Xmx600m"}, false},
+		{"heap from MaxRAM=3g in 1Gi", spec{memLimit: "1Gi", opts: "-XX:MaxRAM=3g"}, true},
+		{"MaxRAM heap over limit is JVM002", spec{memLimit: "1Gi", opts: "-XX:MaxRAM=4g"}, false},
 	})
 }
 
@@ -40,5 +42,13 @@ func TestJVM003XmsFix(t *testing.T) {
 	}
 	if !strings.Contains(f.Fix, "-Xms768m raises the max heap") || strings.Contains(f.Fix, "MaxRAMPercentage") {
 		t.Errorf("fix = %q", f.Fix)
+	}
+}
+
+func TestJVM003MaxRAMFix(t *testing.T) {
+	r, _ := Get("JVM003")
+	f := r.Check(spec{memLimit: "1Gi", opts: "-XX:MaxRAM=3g"}.build(t))
+	if f == nil || !strings.HasPrefix(f.Fix, "remove -XX:MaxRAM=3g (the heap is sized from it, not from the limit), then ") {
+		t.Errorf("finding = %+v", f)
 	}
 }

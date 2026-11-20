@@ -68,7 +68,7 @@ exit codes and how the model works are in the [usage guide](docs/usage.md).
 | ID | Checks | Severity |
 |---|---|---|
 | JVM001 | No memory limit, heap is a percentage (explicit or default) | high |
-| JVM002 | `-Xmx` ≥ memory limit | critical |
+| JVM002 | `-Xmx` ≥ memory limit, or a heap sized from `-XX:MaxRAM` that reaches it | critical |
 | JVM003 | heap + non-heap estimate > memory limit | high |
 | JVM004 | `MaxRAMPercentage` > 80 | medium |
 | JVM005 | No `-Xmx` and no `MaxRAMPercentage` → heap is 25% of the limit (HotSpot) | low |
