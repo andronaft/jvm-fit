@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.svg" width="128" height="128" alt="jvm-fit icon"></p>
+
 # jvm-fit
 
 [![CI](https://github.com/andronaft/jvm-fit/actions/workflows/ci.yml/badge.svg)](https://github.com/andronaft/jvm-fit/actions/workflows/ci.yml)
